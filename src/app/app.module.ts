@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config'
 @Module({
   imports: [
     ConfigModule.forRoot({
+      isGlobal: true,
       load: [
         () => ({
           db: {
@@ -17,7 +18,6 @@ import { ConfigModule } from '@nestjs/config'
           env: process.env.NODE_ENV,
         }),
       ],
-      isGlobal: true,
     }),
   ],
   controllers: [AppController],

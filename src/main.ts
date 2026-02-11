@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core'
+import { NestFactory, Reflector } from '@nestjs/core'
 import { AppModule } from './app/app.module'
 import {
   FastifyAdapter,
@@ -7,6 +7,12 @@ import {
 import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
 import * as qs from 'qs'
+import {
+  ClassSerializerInterceptor,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -39,6 +45,36 @@ async function bootstrap() {
     exposedHeaders: 'Content-Disposition',
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   })
-  await app.listen(process.env.PORT ?? '')
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      whitelist: true,
+    }),
+  )
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
+
+  // enable versioning api
+  app.enableVersioning({
+    type: VersioningType.URI,
+  })
+
+  if (process.env.NODE_ENV !== 'production') {
+    // swagger docs
+    const config = new DocumentBuilder()
+      .setTitle('SKT Payroll Server API')
+      .setDescription('The Api Server For SKT Payroll System')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build()
+    const document = SwaggerModule.createDocument(app, config)
+    SwaggerModule.setup('docs', app, document)
+  }
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0')
 }
-void bootstrap()
+bootstrap().catch((err) => {
+  throw err
+})

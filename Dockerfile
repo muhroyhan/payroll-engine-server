@@ -1,17 +1,11 @@
-FROM oven/bun:latest AS base
+FROM node:22.14.0-bullseye-slim@sha256:73a9dfbb6c761aebdf4666cce2627635a30d1d4c20f67ff642d01b8f09e709a3 AS builder
 WORKDIR /opt/app
-COPY . .
-RUN bun i
+COPY package.json bun.lock tsconfig.json tsconfig.build.json ./
+RUN corepack enable
+RUN bun install --frozen-lockfile
 RUN bun run build
 
-# FROM base AS nodejs
-# WORKDIR /opt/app
-# COPY --from=base /opt/app/node_modules ./node_modules/
-# COPY --from=base /opt/app/dist ./dist/
-# RUN groupadd -r sysuser && useradd -r -g sysuser sysuser \
-#     && mkdir -p /home/sysuser/Downloads \
-#     && chown -R sysuser:sysuser /home/sysuser \
-#     && chown -R sysuser:sysuser /opt/app
-# USER sysuser
-EXPOSE 3000
-CMD ["bun", "start:dev"]
+FROM builder AS runner
+WORKDIR /opt/app
+COPY --from=builder /opt/app/dist ./dist
+COPY --from=builder /opt/app/node_modules ./node_modules

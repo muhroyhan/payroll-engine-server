@@ -12,11 +12,22 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: base
-    environment:
-      NODE_ENV: development
+      target: runner
+    restart: unless-stopped
+    working_dir: /opt/app
     ports:
       - 3000:3000
+    volumes:
+      - .:/opt/app
+    command: bun run start:dev
+    environment:
+      DB_HOST: localhost
+      DB_PASSWORD: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      PORT: 3000
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: true
 
 # The commented out section below is an example of how to define a PostgreSQL
 # database that your application can use. `depends_on` tells Docker Compose to
