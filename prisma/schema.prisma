@@ -22,4 +22,195 @@ model Tenant {
   createdBy String
   updatedAt DateTime @updatedAt
   updatedBy String
+
+  users                    User[]
+  employees                Employee[]
+  salaryComponents         SalaryComponent[]
+  employeeSalaryComponents EmployeeSalaryComponent[]
+  auditLogs                AuditLogs[]
+  payslipPeriods           PayslipPeriod[]
+  payslipRuns              PayslipRun[]
+  payslips                 Payslip[]
+}
+
+enum Role {
+  tenant_admin
+  payroll_officer
+  viewer
+}
+
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  email     String   @unique
+  password  String
+  fullName  String
+  role      Role     @default(viewer)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  createdBy String
+  updatedAt DateTime @updatedAt
+  updatedBy String
+
+  auditLogs   AuditLogs[]
+  payslipRuns PayslipRun[]
+}
+
+model AuditLogs {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  actorUserId String
+  actorUser   User     @relation(fields: [actorUserId], references: [id])
+  action      String
+  entity      String
+  entityType  String
+  entityId    String
+  beforeData  Json?
+  afterData   Json?
+  createdAt   DateTime @default(now())
+}
+
+enum EmployeeType {
+  permanent
+  contract
+}
+
+model Employee {
+  id           String       @id @default(uuid())
+  tenantId     String
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  employeeCode String       @unique
+  fullName     String
+  position     String
+  employeeType EmployeeType @default(contract)
+  baseSalary   Float
+  joinDate     DateTime
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  createdBy    String
+  updatedAt    DateTime     @updatedAt
+  updatedBy    String
+
+  employeeSalaryComponents EmployeeSalaryComponent[]
+  payslips                 Payslip[]
+}
+
+enum SalaryType {
+  allowance
+  deduction
+}
+
+enum CalculationType {
+  fixed
+  percentage
+}
+
+model SalaryComponent {
+  id              String          @id @default(uuid())
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  name            String
+  type            SalaryType      @default(allowance)
+  calculationType CalculationType @default(fixed)
+  defaultValue    Float
+  istaxable       Boolean         @default(false)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  createdBy       String
+  updatedAt       DateTime        @updatedAt
+  updatedBy       String
+}
+
+model EmployeeSalaryComponent {
+  id              String          @id @default(uuid())
+  employeeId      String
+  employee        Employee        @relation(fields: [employeeId], references: [id])
+  tenantId        String
+  tenant          Tenant          @relation(fields: [tenantId], references: [id])
+  name            String
+  type            SalaryType      @default(allowance)
+  calculationType CalculationType @default(fixed)
+  defaultValue    Float
+  istaxable       Boolean         @default(false)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  createdBy       String
+  updatedAt       DateTime        @updatedAt
+  updatedBy       String
+}
+
+enum PayslipPeriodStatus {
+  draft
+  processed
+  locked
+}
+
+model PayslipPeriod {
+  id           String              @id @default(uuid())
+  tenantId     String
+  tenant       Tenant              @relation(fields: [tenantId], references: [id])
+  name         String
+  period_start DateTime
+  period_end   DateTime
+  status       PayslipPeriodStatus @default(draft)
+  createdAt    DateTime            @default(now())
+  createdBy    String
+  updatedAt    DateTime            @updatedAt
+  updatedBy    String
+
+  payslipRuns PayslipRun[]
+}
+
+model PayslipRun {
+  id              String        @id @default(uuid())
+  payslipPeriodId String
+  payslipPeriod   PayslipPeriod @relation(fields: [payslipPeriodId], references: [id])
+  runByUserId     String
+  runByUser       User          @relation(fields: [runByUserId], references: [id])
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
+  grossSalary     Float
+  totalDeductions Float
+  netSalary       Float
+  createdAt       DateTime      @default(now())
+  createdBy       String
+  updatedAt       DateTime      @updatedAt
+  updatedBy       String
+
+  payslips Payslip[]
+}
+
+model Payslip {
+  id             String        @id @default(uuid())
+  payslipRunId   String
+  payslipRun     PayslipRun    @relation(fields: [payslipRunId], references: [id])
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id])
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  baseSalary     Float
+  grossSalary    Float
+  totalAllowance Float
+  totalDeduction Float
+  netSalary      Float
+  createdAt      DateTime      @default(now())
+  createdBy      String
+  updatedAt      DateTime      @updatedAt
+  updatedBy      String
+  payslipItems   PayslipItem[]
+}
+
+model PayslipItem {
+  id            String     @id @default(uuid())
+  payslipId     String
+  payslip       Payslip    @relation(fields: [payslipId], references: [id])
+  componentName String
+  componentType SalaryType
+  amount        Float
+  createdAt     DateTime   @default(now())
+  createdBy     String
+  updatedAt     DateTime   @updatedAt
+  updatedBy     String
 }
