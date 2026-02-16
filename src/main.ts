@@ -1,5 +1,5 @@
 import { NestFactory, Reflector } from '@nestjs/core'
-import { AppModule } from './app/app.module'
+import { AppModule } from './app.module'
 import {
   FastifyAdapter,
   NestFastifyApplication,

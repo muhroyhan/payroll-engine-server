@@ -9,17 +9,14 @@
 # https://github.com/docker/awesome-compose
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: development
+    image: node:24.13.1-trixie-slim
     restart: unless-stopped
+    working_dir: /opt/app
     ports:
       - 3000:3000
     volumes:
       - .:/opt/app
-      - /usr/src/app/node_modules # Exclude node_modules from being overwritten by the bind mount
-    command: bun start:dev
+    command: sh -c "npm i -g bun prisma && prisma generate && bun start:dev"
     environment:
       DB_HOST: localhost
       DB_PASSWORD: postgres
