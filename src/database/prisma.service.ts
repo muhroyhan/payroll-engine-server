@@ -5,16 +5,18 @@ import { PrismaPg } from '@prisma/adapter-pg'
 @Injectable()
 export class PrismaService extends PrismaClient {
   constructor() {
-    const adapter = new PrismaPg(
-      {
-        database: '/payroll-engine',
-        host: process.env.DB_HOST,
-        password: process.env.DB_PASSWORD,
-        port: parseInt(process.env.DB_PORT || '5432'),
-        user: process.env.DB_USERNAME,
-      },
-      { schema: 'public' },
-    )
-    super({ adapter })
+    const pool = new PrismaPg({
+      connectionString:
+        'postgresql://' +
+        process.env.DB_USERNAME +
+        ':' +
+        process.env.DB_PASSWORD +
+        '@' +
+        process.env.DB_HOST +
+        ':' +
+        process.env.DB_PORT +
+        '/payroll-engine?schema=public',
+    })
+    super({ adapter: pool })
   }
 }

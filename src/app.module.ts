@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { AuditLogsModule } from '@src/modules/audit-logs/audit-logs.module'
 import { UsersModule } from '@src/modules/users/users.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { TenantModule } from './modules/tenant/tenant.module'
@@ -9,7 +8,8 @@ import { SalaryComponentModule } from './modules/salary-component/salary-compone
 import { PayrollModule } from './modules/payroll/payroll.module'
 import { PayslipModule } from './modules/payslip/payslip.module'
 import { AuditModule } from './modules/audit/audit.module'
-import { PayrollEngineService } from './domain/payroll/payroll-engine.service'
+import { PrismaService } from './database/prisma.service'
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,7 +26,6 @@ import { PayrollEngineService } from './domain/payroll/payroll-engine.service'
         }),
       ],
     }),
-    AuditLogsModule,
     UsersModule,
     AuthModule,
     TenantModule,
