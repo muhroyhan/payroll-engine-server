@@ -24,29 +24,28 @@
     "sourceMap": true,
     "strictBindCallApply": true,
     "strictNullChecks": true,
-    "target": "ES2023",
-    "types": ["jest", "node"] 
+    "target": "ES2023"
   },
   "watchOptions": {
-    "watchFile": "dynamicPriorityPolling",
-    "watchDirectory": "dynamicPriorityPolling",
-    "synchronousWatchDirectory": true,
-    "excludeDirectories": ["**/node_modules", "dist/*", "test/*"],
-    "excludeFiles": [
-      "*.log",
-      ".git",
-      ".vscode",
-      ".dockerignore",
-      ".gitignore",
-      ".nvmrc",
-      ".sequelizerc",
-      "docker-compose.yaml",
-      "Dockerfile",
-      "package.json",
-      "README.md",
-      "tsconfig.build.json",
-      "tsconfig.json",
-      "yarn.lock"
-    ]
+    "watchFile": "fixedPollingInterval",
+    // "watchDirectory": "dynamicPriorityPolling",
+    // "synchronousWatchDirectory": true,
+    // "excludeDirectories": ["**/node_modules", "dist/*", "test/*"],
+    // "excludeFiles": [
+    //   "*.log",
+    //   ".git",
+    //   ".vscode",
+    //   ".dockerignore",
+    //   ".gitignore",
+    //   ".nvmrc",
+    //   ".sequelizerc",
+    //   "docker-compose.yaml",
+    //   "Dockerfile",
+    //   "package.json",
+    //   "README.md",
+    //   "tsconfig.build.json",
+    //   "tsconfig.json",
+    //   "yarn.lock"
+    // ]
   }
 }

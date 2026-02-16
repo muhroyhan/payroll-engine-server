@@ -1,10 +1,5 @@
-FROM oven/bun:latest AS builder
+FROM node:24.13.1-trixie-slim AS development
 WORKDIR /opt/app
+RUN npm i -g bun
 COPY package.json bun.lock tsconfig.json tsconfig.build.json ./
-RUN bun install --frozen-lockfile
-RUN bun run build
-
-FROM builder AS runner
-WORKDIR /opt/app
-COPY --from=builder /opt/app/dist ./dist
-COPY --from=builder /opt/app/node_modules ./node_modules
+RUN bun install
