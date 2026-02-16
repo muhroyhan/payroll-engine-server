@@ -1,8 +1,15 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { AuditLogsModule } from '@src/audit-logs/audit-logs.module'
-import { UsersModule } from '@src/users/users.module'
-
+import { AuditLogsModule } from '@src/modules/audit-logs/audit-logs.module'
+import { UsersModule } from '@src/modules/users/users.module'
+import { AuthModule } from './modules/auth/auth.module'
+import { TenantModule } from './modules/tenant/tenant.module'
+import { EmployeeModule } from './modules/employee/employee.module'
+import { SalaryComponentModule } from './modules/salary-component/salary-component.module'
+import { PayrollModule } from './modules/payroll/payroll.module'
+import { PayslipModule } from './modules/payslip/payslip.module'
+import { AuditModule } from './modules/audit/audit.module'
+import { PayrollEngineService } from './domain/payroll/payroll-engine.service'
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,6 +28,14 @@ import { UsersModule } from '@src/users/users.module'
     }),
     AuditLogsModule,
     UsersModule,
+    AuthModule,
+    TenantModule,
+    EmployeeModule,
+    SalaryComponentModule,
+    PayrollModule,
+    PayslipModule,
+    AuditModule,
   ],
+  providers: [],
 })
 export class AppModule {}

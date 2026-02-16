@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
-import { PrismaService } from '@src/prisma.service'
+import { PrismaService } from '@src/database/prisma.service'
 import { $Enums, Prisma, User } from '@prismaclient/client'
 import { genSalt, hash } from 'bcryptjs'
 import { SALT } from '@src/constants'
