@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common';
-import { PayslipService } from './payslip.service';
-import { PayslipController } from './payslip.controller';
+import { Module } from '@nestjs/common'
+import { PayslipService } from './services'
+import { PayslipController } from './controllers'
 
 @Module({
   controllers: [PayslipController],
