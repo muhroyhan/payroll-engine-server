@@ -6,8 +6,10 @@
 export const AUTH_CONFIG = {
   // JWT Token Expiry Times
   TOKEN: {
-    ACCESS_EXPIRY: '15m', // 15 minutes - short-lived for security
-    REFRESH_EXPIRY: '7d', // 7 days
+    ACCESS_EXPIRY: '15m', // 15 minutes - short-lived for security (human-readable)
+    REFRESH_EXPIRY: '7d', // 7 days (human-readable)
+    ACCESS_EXPIRY_SECONDS: 15 * 60, // 15 minutes in seconds
+    REFRESH_EXPIRY_SECONDS: 7 * 24 * 60 * 60, // 7 days in seconds
     ALGORITHM: 'HS256', // HMAC SHA-256
   },
 

@@ -6,18 +6,17 @@ import {
   HttpStatus,
   Logger,
   Post,
-  UseGuards,
 } from '@nestjs/common'
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler'
+import { Throttle } from '@nestjs/throttler'
 
 import { AuthService } from '../services/auth.service'
 import { RefreshDto } from '../dto/refresh.dto'
-import { JwtAuthGuard } from '../guards/jwt-auth.guard'
 import { LoginResponse } from '../types/login-response.type'
 import { LoginDto } from '../dto/login.dto'
 import { CurrentUser } from '@src/common/decorators/current-user.decorator'
 import type { AuthUser } from '@src/common/types/auth-user.type'
 import { AUTH_CONFIG } from '../auth.config'
+import { Public } from '@src/common/decorators/public.decorator'
 
 /**
  * Authentication Controller
@@ -30,7 +29,6 @@ import { AUTH_CONFIG } from '../auth.config'
  * - GET /auth/me - Get current user profile
  * - POST /auth/logout - Invalidate refresh token
  */
-@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name)
@@ -53,6 +51,7 @@ export class AuthController {
     },
   })
   @HttpCode(HttpStatus.OK)
+  @Public()
   @Post('login')
   async login(@Body() body: LoginDto): Promise<LoginResponse> {
     const user = await this.auth.validateUser(body.email, body.password)
@@ -68,6 +67,7 @@ export class AuthController {
    * Response: 200 on success, 401 if token is invalid or user inactive
    */
   @HttpCode(HttpStatus.OK)
+  @Public()
   @Post('refresh')
   async refresh(@Body() body: RefreshDto): Promise<LoginResponse> {
     return this.auth.refresh(body.refreshToken)
@@ -81,7 +81,6 @@ export class AuthController {
    * Requires: Valid JWT access token
    * Response: 200 with user data, 401 if token invalid or user inactive
    */
-  @UseGuards(JwtAuthGuard)
   @Get('me')
   async getCurrentUser(@CurrentUser() user: AuthUser) {
     return this.auth.getCurrentUser(user.userId)
@@ -98,7 +97,6 @@ export class AuthController {
    * For immediate token revocation, implement token blacklist
    * Response: 200 on success, 401 if token invalid
    */
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   async logout(@CurrentUser() user: AuthUser): Promise<{ success: true }> {

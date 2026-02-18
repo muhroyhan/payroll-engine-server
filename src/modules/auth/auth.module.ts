@@ -7,6 +7,7 @@ import { AuthService } from './services'
 import { JwtStrategy } from './strategies/jwt.strategy'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { PrismaModule } from '@src/database/prisma.module'
+import { AUTH_CONFIG } from './auth.config'
 
 @Module({
   imports: [
@@ -15,10 +16,16 @@ import { PrismaModule } from '@src/database/prisma.module'
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('jwtsecret'),
-        signOptions: { expiresIn: '8h' },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('jwtsecret')
+        if (!secret) {
+          throw new Error('JWT_SECRET is required')
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: AUTH_CONFIG.TOKEN.ACCESS_EXPIRY_SECONDS },
+        }
+      },
     }),
   ],
   controllers: [AuthController],

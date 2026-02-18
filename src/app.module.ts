@@ -1,15 +1,12 @@
-import { Module } from '@nestjs/common'
+import { Module, ValidationPipe } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerModule } from '@nestjs/throttler'
-import { UsersModule } from '@src/modules/users/users.module'
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
 import { AuthModule } from './modules/auth/auth.module'
-import { TenantModule } from './modules/tenant/tenant.module'
-import { EmployeeModule } from './modules/employee/employee.module'
-import { SalaryComponentModule } from './modules/salary-component/salary-component.module'
-import { PayrollModule } from './modules/payroll/payroll.module'
-import { PayslipModule } from './modules/payslip/payslip.module'
-import { AuditModule } from './modules/audit/audit.module'
 import { AUTH_CONFIG } from './modules/auth/auth.config'
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
+import { ThrottlerGuard } from '@nestjs/throttler'
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 
 @Module({
   imports: [
@@ -30,8 +27,8 @@ import { AUTH_CONFIG } from './modules/auth/auth.config'
     ThrottlerModule.forRoot([
       {
         name: 'global',
-        ttl: 60,
-        limit: 100,
+        ttl: AUTH_CONFIG.THROTTLE.GLOBAL_TTL,
+        limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
       },
       {
         name: 'login',
@@ -39,15 +36,32 @@ import { AUTH_CONFIG } from './modules/auth/auth.config'
         limit: AUTH_CONFIG.THROTTLE.LOGIN_LIMIT,
       },
     ]),
-    UsersModule,
     AuthModule,
-    TenantModule,
-    EmployeeModule,
-    SalaryComponentModule,
-    PayrollModule,
-    PayslipModule,
-    AuditModule,
   ],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_PIPE,
+      useFactory: () =>
+        new ValidationPipe({
+          transform: true,
+          transformOptions: {
+            enableImplicitConversion: true,
+          },
+          whitelist: true,
+        }),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

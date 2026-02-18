@@ -7,7 +7,7 @@ export abstract class BaseException extends Error {
     public readonly code: string,
     public readonly message: string,
     public readonly statusCode: number,
-    public readonly details?: Record<string, any>,
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message)
     this.name = this.constructor.name
