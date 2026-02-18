@@ -17,7 +17,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest()
 
     let statusCode = 500
-    let body: any = {
+    let body: Record<string, unknown> = {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'An unexpected error occurred',
     }

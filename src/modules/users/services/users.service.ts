@@ -55,12 +55,23 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: userWhereUniqueInput })
   }
 
-  update(params: { data: UpdateUserDto; where: Prisma.UserWhereUniqueInput }) {
+  async update(params: {
+    data: UpdateUserDto
+    where: Prisma.UserWhereUniqueInput
+  }) {
+    let password = params.data.password
+
+    // Hash password if provided
+    if (password) {
+      const salt = await genSalt(SALT)
+      password = await hash(password, salt)
+    }
+
     const data: Prisma.UserUpdateInput = {
       email: params.data.email,
       fullName: params.data.fullName,
       isActive: params.data.isActive || true,
-      password: params.data.password,
+      ...(password && { password }),
       role: params.data.role || $Enums.Role.viewer,
       tenant: {},
       createdBy: '',
