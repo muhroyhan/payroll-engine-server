@@ -7,8 +7,8 @@ import {
   Logger,
   Post,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common'
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler'
 
 import { AuthService } from '../services/auth.service'
 import { RefreshDto } from '../dto/refresh.dto'
@@ -17,7 +17,7 @@ import { LoginResponse } from '../types/login-response.type'
 import { LoginDto } from '../dto/login.dto'
 import { CurrentUser } from '@src/common/decorators/current-user.decorator'
 import type { AuthUser } from '@src/common/types/auth-user.type'
-import { RateLimitInterceptor } from '../interceptors/rate-limit.interceptor'
+import { AUTH_CONFIG } from '../auth.config'
 
 /**
  * Authentication Controller
@@ -30,6 +30,7 @@ import { RateLimitInterceptor } from '../interceptors/rate-limit.interceptor'
  * - GET /auth/me - Get current user profile
  * - POST /auth/logout - Invalidate refresh token
  */
+@UseGuards(ThrottlerGuard)
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name)
@@ -42,10 +43,15 @@ export class AuthController {
    * @param body - LoginDto with email and password
    * @returns LoginResponse with accessToken, refreshToken, and user data
    *
-   * Rate Limiting: 5 attempts per 15 minutes per email
+   * Throttling: 5 attempts per 15 minutes per email (email-based key)
    * Response: 200 on success, 401 on invalid credentials, 429 on rate limit
    */
-  @UseInterceptors(RateLimitInterceptor)
+  @Throttle({
+    login: {
+      limit: AUTH_CONFIG.THROTTLE.LOGIN_LIMIT,
+      ttl: AUTH_CONFIG.THROTTLE.LOGIN_TTL,
+    },
+  })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() body: LoginDto): Promise<LoginResponse> {
@@ -64,7 +70,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   async refresh(@Body() body: RefreshDto): Promise<LoginResponse> {
-    return this.auth.refresh(body.refreshToken || '')
+    return this.auth.refresh(body.refreshToken)
   }
 
   /**

@@ -21,11 +21,12 @@ export const AUTH_CONFIG = {
     REQUIRE_SYMBOLS: true,
   },
 
-  // Rate Limiting (per email)
-  RATE_LIMIT: {
-    LOGIN_MAX_ATTEMPTS: 5, // Max failed attempts
-    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    CLEANUP_INTERVAL_MS: 60 * 60 * 1000, // Clean old records every hour
+  // Throttling Configuration (@nestjs/throttler)
+  THROTTLE: {
+    LOGIN_LIMIT: 5, // Max attempts per window
+    LOGIN_TTL: 15 * 60, // 15 minutes in seconds
+    GLOBAL_LIMIT: 100, // Global rate limit per minute
+    GLOBAL_TTL: 60, // 1 minute in seconds
   },
 
   // Error Messages (Generic for security - don't reveal user existence)
