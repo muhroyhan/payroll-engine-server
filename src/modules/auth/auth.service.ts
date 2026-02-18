@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcrypt'
 import { JwtPayload } from './types/jwt-payload.type'
@@ -18,8 +18,8 @@ export class AuthService {
     })
 
     if (!user) throw new UnauthorizedException('Invalid credentials')
+    Logger.log(password)
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const ok = await bcrypt.compare(password, user.password)
     if (!ok) throw new UnauthorizedException('Invalid credentials')
 

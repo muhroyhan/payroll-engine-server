@@ -1,6 +1,8 @@
 import { PrismaPg } from '@prisma/adapter-pg'
 import { $Enums, Prisma, PrismaClient } from '@prismaclient/client'
 import 'dotenv/config'
+import { genSaltSync, hashSync } from 'bcryptjs'
+import { SALT } from '@src/constants'
 
 const pool = new PrismaPg({
   connectionString:
@@ -20,7 +22,7 @@ const userData: Prisma.UserCreateInput[] = [
   {
     id: '1',
     email: 'admin@admin.com',
-    password: 'admin123',
+    password: hashSync('Test12345!', genSaltSync(SALT)),
     fullName: 'Admin',
     role: $Enums.Role.tenant_admin,
     isActive: true,

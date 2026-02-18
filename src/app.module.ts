@@ -8,7 +8,6 @@ import { SalaryComponentModule } from './modules/salary-component/salary-compone
 import { PayrollModule } from './modules/payroll/payroll.module'
 import { PayslipModule } from './modules/payslip/payslip.module'
 import { AuditModule } from './modules/audit/audit.module'
-import { PrismaService } from './database/prisma.service'
 
 @Module({
   imports: [
@@ -16,13 +15,8 @@ import { PrismaService } from './database/prisma.service'
       isGlobal: true,
       load: [
         () => ({
-          db: {
-            host: process.env.DB_HOST,
-            port: parseInt(process.env.DB_PORT || ''),
-            username: process.env.DB_USERNAME,
-            password: process.env.DB_PASSWORD,
-          },
           env: process.env.NODE_ENV,
+          jwtsecret: process.env.JWT_SECRET,
         }),
       ],
     }),
