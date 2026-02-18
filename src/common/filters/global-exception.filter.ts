@@ -5,16 +5,17 @@ import {
   HttpException,
   Logger,
 } from '@nestjs/common'
+import { FastifyReply, FastifyRequest } from 'fastify'
 import { BaseException } from '../exceptions/base.exception'
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name)
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp()
-    const response = ctx.getResponse()
-    const request = ctx.getRequest()
+    const response = ctx.getResponse<FastifyReply>()
+    const request = ctx.getRequest<FastifyRequest>()
 
     let statusCode = 500
     let body: Record<string, unknown> = {
@@ -47,7 +48,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       timestamp: new Date().toISOString(),
     })
 
-    response.status(statusCode).json({
+    response.status(statusCode).send({
       ...body,
       timestamp: new Date().toISOString(),
       path: request.url,
