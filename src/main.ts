@@ -10,7 +10,6 @@ import * as qs from 'qs'
 import {
   ClassSerializerInterceptor,
   Logger,
-  ValidationPipe,
   VersioningType,
 } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
@@ -48,15 +47,6 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   })
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-      whitelist: true,
-    }),
-  )
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)))
 
   // enable versioning api
@@ -76,7 +66,8 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document)
   }
   app.enableShutdownHooks()
-  Logger.log('test')
   await app.listen(process.env.PORT ?? '3000', '0.0.0.0')
 }
-bootstrap().catch(() => {})
+bootstrap().catch((err) => {
+  Logger.error(err)
+})

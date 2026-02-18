@@ -1,13 +1,12 @@
-import { Module } from '@nestjs/common'
+import { Module, ValidationPipe } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { UsersModule } from '@src/modules/users/users.module'
+import { ThrottlerModule } from '@nestjs/throttler'
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
 import { AuthModule } from './modules/auth/auth.module'
-import { TenantModule } from './modules/tenant/tenant.module'
-import { EmployeeModule } from './modules/employee/employee.module'
-import { SalaryComponentModule } from './modules/salary-component/salary-component.module'
-import { PayrollModule } from './modules/payroll/payroll.module'
-import { PayslipModule } from './modules/payslip/payslip.module'
-import { AuditModule } from './modules/audit/audit.module'
+import { AUTH_CONFIG } from './modules/auth/auth.config'
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
+import { ThrottlerGuard } from '@nestjs/throttler'
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 
 @Module({
   imports: [
@@ -20,15 +19,49 @@ import { AuditModule } from './modules/audit/audit.module'
         }),
       ],
     }),
-    UsersModule,
+    /**
+     * Throttler Configuration
+     * - Global: 100 requests per 60 seconds
+     * - Custom key generators per endpoint (see auth controller for email-based limiting)
+     */
+    ThrottlerModule.forRoot([
+      {
+        name: 'global',
+        ttl: AUTH_CONFIG.THROTTLE.GLOBAL_TTL,
+        limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
+      },
+      {
+        name: 'login',
+        ttl: AUTH_CONFIG.THROTTLE.LOGIN_TTL,
+        limit: AUTH_CONFIG.THROTTLE.LOGIN_LIMIT,
+      },
+    ]),
     AuthModule,
-    TenantModule,
-    EmployeeModule,
-    SalaryComponentModule,
-    PayrollModule,
-    PayslipModule,
-    AuditModule,
   ],
-  providers: [],
+  providers: [
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
+    },
+    {
+      provide: APP_PIPE,
+      useFactory: () =>
+        new ValidationPipe({
+          transform: true,
+          transformOptions: {
+            enableImplicitConversion: true,
+          },
+          whitelist: true,
+        }),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}
