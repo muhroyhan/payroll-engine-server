@@ -6,16 +6,16 @@ import {
   HttpStatus,
   Logger,
   Post,
+  UseGuards,
 } from '@nestjs/common'
-import { Throttle } from '@nestjs/throttler'
 
 import { AuthService } from '../services/auth.service'
+import { EmailThrottlerGuard } from '../guards/email-throttler.guard'
 import { RefreshDto } from '../dto/refresh.dto'
 import { LoginResponse } from '../types/login-response.type'
 import { LoginDto } from '../dto/login.dto'
 import { CurrentUser } from '@src/common/decorators/current-user.decorator'
 import type { AuthUser } from '@src/common/types/auth-user.type'
-import { AUTH_CONFIG } from '../auth.config'
 import { Public } from '@src/common/decorators/public.decorator'
 
 /**
@@ -41,15 +41,10 @@ export class AuthController {
    * @param body - LoginDto with email and password
    * @returns LoginResponse with accessToken, refreshToken, and user data
    *
-   * Throttling: 5 attempts per 15 minutes per email (email-based key)
+   * Rate Limiting: Max 5 attempts per 15 minutes per email address
    * Response: 200 on success, 401 on invalid credentials, 429 on rate limit
    */
-  @Throttle({
-    login: {
-      limit: AUTH_CONFIG.THROTTLE.LOGIN_LIMIT,
-      ttl: AUTH_CONFIG.THROTTLE.LOGIN_TTL,
-    },
-  })
+  @UseGuards(EmailThrottlerGuard)
   @HttpCode(HttpStatus.OK)
   @Public()
   @Post('login')
