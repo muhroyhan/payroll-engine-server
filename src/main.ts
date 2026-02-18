@@ -9,6 +9,7 @@ import multipart from '@fastify/multipart'
 import * as qs from 'qs'
 import {
   ClassSerializerInterceptor,
+  Logger,
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common'
@@ -42,6 +43,7 @@ async function bootstrap() {
     },
   })
   app.enableCors({
+    origin: true,
     exposedHeaders: 'Content-Disposition',
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   })
@@ -74,8 +76,7 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document)
   }
   app.enableShutdownHooks()
-  await app.listen(process.env.PORT ?? '', '0.0.0.0')
+  Logger.log('test')
+  await app.listen(process.env.PORT ?? '3000', '0.0.0.0')
 }
-bootstrap().catch((err) => {
-  throw err
-})
+bootstrap().catch(() => {})

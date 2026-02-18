@@ -1,5 +1,5 @@
-export type JwtPayload = {
-  sub: string
+export type AuthUser = {
+  userId: string
   email: string
   role: string
   tenantId: string

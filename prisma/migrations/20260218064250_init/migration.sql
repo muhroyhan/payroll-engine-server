@@ -35,6 +35,7 @@ CREATE TABLE "User" (
     "fullName" TEXT NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'viewer',
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "refreshToken" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,

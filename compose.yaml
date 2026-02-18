@@ -1,51 +1,14 @@
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Docker Compose reference guide at
-# https://docs.docker.com/go/compose-spec-reference/
-
-# Here the instructions define your application as a service called "server".
-# This service is built from the Dockerfile in the current directory.
-# You can add other services your application may depend on here, such as a
-# database or a cache. For examples, see the Awesome Compose repository:
-# https://github.com/docker/awesome-compose
 services:
-  app:
-    image: node:24.13.1-trixie-slim
-    restart: unless-stopped
-    working_dir: /opt/app
-    ports:
-      - 3000:3000
-    volumes:
-      - .:/opt/app
-    command: sh -c "npm i -g bun prisma && prisma generate && bun start:dev"
-    environment:
-      DB_HOST: localhost
-      DB_PASSWORD: postgres
-      DB_PORT: 5432
-      DB_USERNAME: postgres
-      NODE_ENV: development
-    mem_limit: 1024M
-    cpus: 1
-    depends_on:
-      db:
-        condition: service_healthy
-
   db:
     image: postgres:18.2-trixie
-    restart: always
+    restart: unless-stopped
     user: postgres
     volumes:
       - db-data:/var/lib/postgresql
     environment:
       - POSTGRES_DB=payroll-engine
       - POSTGRES_PASSWORD=postgres
-    expose:
-      - 5432
     ports:
       - 5432:5432
-    healthcheck:
-      test: [ "CMD", "pg_isready" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 volumes:
   db-data:
