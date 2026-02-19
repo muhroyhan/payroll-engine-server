@@ -93,11 +93,19 @@
     ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": ["ts-jest", {
+        "tsconfig": {
+          "module": "CommonJS",
+          "moduleResolution": "node",
+          "resolvePackageJsonExports": false,
+          "esModuleInterop": false
+        }
+      }]
     },
     "moduleNameMapper": {
       "^@src/(.*)$": "<rootDir>/src/$1",
-      "^@prismaclient/(.*)$": "<rootDir>/prisma/client/$1"
+      "^@prismaclient/(.*)$": "<rootDir>/prisma/client/$1",
+      "^(\\.{1,2}/.+)\\.js$": "$1"
     },
     "collectCoverageFrom": [
       "src/**/*.(t|j)s"
