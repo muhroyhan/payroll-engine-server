@@ -1,0 +1,226 @@
+name: CI/CD — Test, Build & Deploy to Fly.io
+
+# ─── Trigger ────────────────────────────────────────────────────────────────
+# Runs on every push to the master branch.
+on:
+  push:
+    branches:
+      - master
+
+# ─── Global env ─────────────────────────────────────────────────────────────
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }} # e.g. muhroyhan/payroll-engine-server
+  FLY_APP: payroll-engine-server # must match app.name in fly.toml
+
+# ─── Pipeline ────────────────────────────────────────────────────────────────
+#
+#   test → build-and-push → create-release → db-migrate → deploy
+#
+# DB migrations run BEFORE the new API server is deployed so the schema
+# is always ready when the new code starts up.
+
+jobs:
+  # ── 1. Lint & Test ──────────────────────────────────────────────────────────
+  test:
+    name: Lint & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Unit tests
+        run: bun run test
+
+  # ── 2. Build & Push Docker image ────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: read
+      packages: write # required to push to GHCR
+
+    outputs:
+      sha_tag: ${{ steps.short-sha.outputs.sha_tag }}
+      calver_tag: ${{ steps.calver.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Short commit SHA used for the Docker image tag and release note
+      - name: Generate short SHA tag
+        id: short-sha
+        run: |
+          SHA_TAG="sha-$(git rev-parse --short HEAD)"
+          echo "sha_tag=$SHA_TAG" >> $GITHUB_OUTPUT
+
+      # CalVer tag: v<YYYY>.<MM>.<DD>-<run_number>  e.g. v2026.02.19-7
+      - name: Generate CalVer release tag
+        id: calver
+        run: |
+          TAG="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Set up Buildx for cache support
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Attach three tags to every master build:
+      #   latest          → always the newest master image
+      #   sha-<short-sha> → immutable reference per commit (used for rollback)
+      #   v<calver>       → human-readable release tag (used for rollback)
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ steps.short-sha.outputs.sha_tag }}
+            type=raw,value=${{ steps.calver.outputs.tag }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 3. Create Git Tag & GitHub Release ──────────────────────────────────────
+  create-release:
+    name: Create Git Tag & GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    permissions:
+      contents: write # required to push tags and create releases
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create and push git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ needs.build-and-push.outputs.calver_tag }} \
+            -m "Release ${{ needs.build-and-push.outputs.calver_tag }} — ${{ github.sha }}"
+          git push origin ${{ needs.build-and-push.outputs.calver_tag }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-and-push.outputs.calver_tag }}
+          name: 'Release ${{ needs.build-and-push.outputs.calver_tag }}'
+          body: |
+            ## What's in this release
+
+            | Field | Value |
+            |---|---|
+            | **Commit** | `${{ github.sha }}` |
+            | **Branch** | `master` |
+            | **Docker image** | `ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.sha_tag }}` |
+            | **Deployed to** | Fly.io |
+
+            ## Available image tags for rollback
+
+            | Tag | Description |
+            |---|---|
+            | `latest` | Always points to the newest master deploy |
+            | `${{ needs.build-and-push.outputs.sha_tag }}` | Immutable — this exact commit |
+            | `${{ needs.build-and-push.outputs.calver_tag }}` | This named release |
+
+            ## How to rollback
+            Go to **Actions → Rollback Deploy** and enter one of the tags above.
+
+  # ── 4. DB Migrate → Supabase ────────────────────────────────────────────────
+  # Runs BEFORE the API server is deployed so the schema is ready for new code.
+  # Seed never runs automatically here — use the manual "DB Seed" workflow.
+  db-migrate:
+    name: Prisma Migrate Deploy → Supabase
+    runs-on: ubuntu-latest
+    needs: create-release
+
+    env:
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_USERNAME: ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      # `migrate deploy` is production-safe: applies only pending migrations,
+      # never resets or generates new ones. Idempotent — safe on every deploy.
+      - name: Run Prisma migrate deploy
+        run: bunx prisma migrate deploy --config prisma.config.ts
+
+      - name: Write migration summary
+        run: |
+          echo "## DB Migration Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Host** | \`${{ secrets.DB_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ── 5. Deploy to Fly.io ─────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+    needs: [build-and-push, db-migrate]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # flyctl deploys the pre-built GHCR image directly — no rebuild on Fly's side.
+      # FLY_API_TOKEN: Fly.io dashboard → Account → Access Tokens → Create token
+      - name: Deploy image to Fly.io
+        uses: superfly/flyctl-actions@1.5
+        with:
+          args: >
+            deploy
+            --image ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.calver_tag }}
+            --app ${{ env.FLY_APP }}
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Write deploy summary
+        run: |
+          echo "## Deployed to Fly.io" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Release tag | \`${{ needs.build-and-push.outputs.calver_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image tag | \`${{ needs.build-and-push.outputs.sha_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| App URL | https://${{ env.FLY_APP }}.fly.dev |" >> $GITHUB_STEP_SUMMARY
