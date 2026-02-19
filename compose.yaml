@@ -1,14 +1,22 @@
 services:
   db:
-    image: postgres:18.2-trixie
+    image: postgres:17-alpine
     restart: unless-stopped
     user: postgres
+    env_file:
+      - .env
     volumes:
-      - db-data:/var/lib/postgresql
+      - db-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=payroll-engine
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
-      - 5432:5432
+      - ${DB_PORT}:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d payroll-engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 volumes:
   db-data:

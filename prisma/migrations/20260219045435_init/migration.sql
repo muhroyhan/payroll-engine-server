@@ -68,7 +68,7 @@ CREATE TABLE "Employee" (
     "fullName" TEXT NOT NULL,
     "position" TEXT NOT NULL,
     "employeeType" "EmployeeType" NOT NULL DEFAULT 'contract',
-    "baseSalary" DOUBLE PRECISION NOT NULL,
+    "baseSalary" DECIMAL(15,2) NOT NULL,
     "joinDate" TIMESTAMP(3) NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -86,8 +86,8 @@ CREATE TABLE "SalaryComponent" (
     "name" TEXT NOT NULL,
     "type" "SalaryType" NOT NULL DEFAULT 'allowance',
     "calculationType" "CalculationType" NOT NULL DEFAULT 'fixed',
-    "defaultValue" DOUBLE PRECISION NOT NULL,
-    "istaxable" BOOLEAN NOT NULL DEFAULT false,
+    "defaultValue" DECIMAL(15,2) NOT NULL,
+    "isTaxable" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
@@ -105,8 +105,8 @@ CREATE TABLE "EmployeeSalaryComponent" (
     "name" TEXT NOT NULL,
     "type" "SalaryType" NOT NULL DEFAULT 'allowance',
     "calculationType" "CalculationType" NOT NULL DEFAULT 'fixed',
-    "defaultValue" DOUBLE PRECISION NOT NULL,
-    "istaxable" BOOLEAN NOT NULL DEFAULT false,
+    "defaultValue" DECIMAL(15,2) NOT NULL,
+    "isTaxable" BOOLEAN NOT NULL DEFAULT false,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
@@ -138,9 +138,9 @@ CREATE TABLE "PayslipRun" (
     "payslipPeriodId" TEXT NOT NULL,
     "runByUserId" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
-    "grossSalary" DOUBLE PRECISION NOT NULL,
-    "totalDeductions" DOUBLE PRECISION NOT NULL,
-    "netSalary" DOUBLE PRECISION NOT NULL,
+    "grossSalary" DECIMAL(15,2) NOT NULL,
+    "totalDeductions" DECIMAL(15,2) NOT NULL,
+    "netSalary" DECIMAL(15,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -155,11 +155,11 @@ CREATE TABLE "Payslip" (
     "payslipRunId" TEXT NOT NULL,
     "employeeId" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
-    "baseSalary" DOUBLE PRECISION NOT NULL,
-    "grossSalary" DOUBLE PRECISION NOT NULL,
-    "totalAllowance" DOUBLE PRECISION NOT NULL,
-    "totalDeduction" DOUBLE PRECISION NOT NULL,
-    "netSalary" DOUBLE PRECISION NOT NULL,
+    "baseSalary" DECIMAL(15,2) NOT NULL,
+    "grossSalary" DECIMAL(15,2) NOT NULL,
+    "totalAllowance" DECIMAL(15,2) NOT NULL,
+    "totalDeduction" DECIMAL(15,2) NOT NULL,
+    "netSalary" DECIMAL(15,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -174,7 +174,7 @@ CREATE TABLE "PayslipItem" (
     "payslipId" TEXT NOT NULL,
     "componentName" TEXT NOT NULL,
     "componentType" "SalaryType" NOT NULL,
-    "amount" DOUBLE PRECISION NOT NULL,
+    "amount" DECIMAL(15,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "createdBy" TEXT NOT NULL,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -190,7 +190,64 @@ CREATE UNIQUE INDEX "Tenant_code_key" ON "Tenant"("code");
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
+CREATE INDEX "User_tenantId_idx" ON "User"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "User_tenantId_isActive_idx" ON "User"("tenantId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "AuditLogs_tenantId_idx" ON "AuditLogs"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "AuditLogs_tenantId_actorUserId_idx" ON "AuditLogs"("tenantId", "actorUserId");
+
+-- CreateIndex
+CREATE INDEX "AuditLogs_tenantId_createdAt_idx" ON "AuditLogs"("tenantId", "createdAt");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Employee_employeeCode_key" ON "Employee"("employeeCode");
+
+-- CreateIndex
+CREATE INDEX "Employee_tenantId_idx" ON "Employee"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "Employee_tenantId_isActive_idx" ON "Employee"("tenantId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "SalaryComponent_tenantId_idx" ON "SalaryComponent"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "SalaryComponent_tenantId_isActive_idx" ON "SalaryComponent"("tenantId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "EmployeeSalaryComponent_tenantId_idx" ON "EmployeeSalaryComponent"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "EmployeeSalaryComponent_employeeId_idx" ON "EmployeeSalaryComponent"("employeeId");
+
+-- CreateIndex
+CREATE INDEX "PayslipPeriod_tenantId_idx" ON "PayslipPeriod"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "PayslipPeriod_tenantId_status_idx" ON "PayslipPeriod"("tenantId", "status");
+
+-- CreateIndex
+CREATE INDEX "PayslipRun_tenantId_idx" ON "PayslipRun"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "PayslipRun_tenantId_payslipPeriodId_idx" ON "PayslipRun"("tenantId", "payslipPeriodId");
+
+-- CreateIndex
+CREATE INDEX "Payslip_tenantId_idx" ON "Payslip"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "Payslip_tenantId_employeeId_idx" ON "Payslip"("tenantId", "employeeId");
+
+-- CreateIndex
+CREATE INDEX "Payslip_payslipRunId_idx" ON "Payslip"("payslipRunId");
+
+-- CreateIndex
+CREATE INDEX "PayslipItem_payslipId_idx" ON "PayslipItem"("payslipId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

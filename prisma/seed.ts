@@ -3,19 +3,9 @@ import { $Enums, Prisma, PrismaClient } from '@prismaclient/client'
 import 'dotenv/config'
 import { genSaltSync, hashSync } from 'bcryptjs'
 import { SALT } from '@src/constants'
+import { buildDatabaseUrl } from '@src/database/database-url'
 
-const pool = new PrismaPg({
-  connectionString:
-    'postgresql://' +
-    process.env.DB_USERNAME +
-    ':' +
-    process.env.DB_PASSWORD +
-    '@' +
-    process.env.DB_HOST +
-    ':' +
-    process.env.DB_PORT +
-    '/payroll-engine?schema=public',
-})
+const pool = new PrismaPg({ connectionString: buildDatabaseUrl() })
 const prisma = new PrismaClient({ adapter: pool })
 
 const userData: Prisma.UserCreateInput[] = [
