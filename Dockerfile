@@ -11,8 +11,12 @@ WORKDIR /app
 COPY package.json ./
 RUN bun install
 
-# Copy source code (including pre-generated prisma/client/)
+# Copy source code and prisma schema
 COPY . .
+
+# Generate Prisma client from schema — prisma/client/ is gitignored so it
+# must be generated at build time before TypeScript compilation.
+RUN bunx prisma generate --config prisma.config.ts
 
 # Compile TypeScript + rewrite path aliases via tsc-alias
 # bun run executes the npm script using the locally installed NestJS CLI
