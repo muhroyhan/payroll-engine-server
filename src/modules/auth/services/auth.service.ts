@@ -12,6 +12,7 @@ import { LoginResponse, SafeUser } from '../types/login-response.type'
 import { PrismaService } from '@src/database/prisma.service'
 import { User } from '@prismaclient/client'
 import { AUTH_CONFIG } from '../auth.config'
+import { EmailThrottlerGuard } from '../guards/email-throttler.guard'
 
 /**
  * Authentication Service
@@ -23,6 +24,7 @@ import { AUTH_CONFIG } from '../auth.config'
  * - Stores refresh tokens as hashes (not plain text)
  * - Validates user active status on every operation
  * - Generic error messages prevent user enumeration attacks
+ * - Tracks failed login attempts for rate limiting
  */
 @Injectable()
 export class AuthService {
@@ -31,6 +33,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private throttler: EmailThrottlerGuard,
   ) {}
 
   /**
@@ -122,6 +125,8 @@ export class AuthService {
    * - Check if user exists and is active
    * - Verify password using bcrypt
    * - Generic error message prevents user enumeration
+   * - Only records failed attempts for existing users with wrong password
+   * - Does NOT record attempts for unregistered emails
    *
    * @throws UnauthorizedException with generic message
    */
@@ -134,9 +139,11 @@ export class AuthService {
       where: { email: normalizedEmail, isActive: true },
     })
 
-    // Generic error message (don't reveal if email exists)
+    // Email not registered - no attempt recorded
     if (!user) {
-      this.logger.warn(`Login attempt with unknown email: ${normalizedEmail}`)
+      this.logger.warn(
+        `Login attempt with unregistered email: ${normalizedEmail}`,
+      )
       throw new UnauthorizedException(AUTH_CONFIG.ERROR.INVALID_CREDENTIALS)
     }
 
@@ -145,6 +152,8 @@ export class AuthService {
 
     if (!passwordValid) {
       this.logger.warn(`Failed login attempt for user: ${user.id}`)
+      // Only record failed attempt when email exists but password is wrong
+      this.throttler.recordFailedAttempt(normalizedEmail)
       throw new UnauthorizedException(AUTH_CONFIG.ERROR.INVALID_CREDENTIALS)
     }
 
@@ -156,11 +165,15 @@ export class AuthService {
    * Login user and generate tokens
    * - Generate access and refresh tokens
    * - Store hashed refresh token in database
+   * - Clear failed login attempts for successful logins
    * - Return tokens and user data
    */
   async login(user: User): Promise<LoginResponse> {
     const tokens = await this.generateTokens(user)
     await this.storeRefreshToken(user.id, tokens.refreshToken)
+
+    // Clear failed attempts on successful login
+    this.throttler.clearAttempts(user.email)
 
     return {
       accessToken: tokens.accessToken,

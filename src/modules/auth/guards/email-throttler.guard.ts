@@ -10,13 +10,17 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 
 /**
  * Custom Email-Based Rate Limiter Guard for Fastify
- * Tracks login attempts by email address (not IP)
- * 5 attempts per 15 minutes per email
+ * Tracks FAILED login attempts by email address (not IP)
+ * 5 failed attempts per 15 minutes per email
+ *
+ * Note: This guard only checks the limit but doesn't record attempts here.
+ * Failed attempts are recorded when validateUser() throws an exception.
+ * Successful attempts are cleared to prevent blocking after a successful login.
  */
 @Injectable()
 export class EmailThrottlerGuard implements CanActivate {
   private readonly logger = new Logger(EmailThrottlerGuard.name)
-  private readonly attempts = new Map<string, number[]>()
+  private readonly failedAttempts = new Map<string, number[]>()
   private readonly LIMIT = 5
   private readonly WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 
@@ -37,24 +41,24 @@ export class EmailThrottlerGuard implements CanActivate {
     }
 
     const now = Date.now()
-    const key = `login:${email.toLowerCase()}`
+    const key = this.getKey(email)
 
-    // Get attempt history for this email
-    let emailAttempts = this.attempts.get(key) || []
+    // Get failed attempt history for this email
+    let failedAttempts = this.failedAttempts.get(key) || []
 
     // Remove old attempts outside the window
-    emailAttempts = emailAttempts.filter(
+    failedAttempts = failedAttempts.filter(
       (timestamp) => now - timestamp < this.WINDOW_MS,
     )
 
-    // Check if limit exceeded
-    if (emailAttempts.length >= this.LIMIT) {
+    // Check if limit exceeded (only failed attempts count)
+    if (failedAttempts.length >= this.LIMIT) {
       this.logger.warn(
-        `Rate limit exceeded for email: ${email}. Attempts: ${emailAttempts.length}`,
+        `Rate limit exceeded for email: ${email}. Failed attempts: ${failedAttempts.length}`,
       )
 
       // Set Retry-After header (seconds)
-      const oldestAttempt = emailAttempts[0]
+      const oldestAttempt = failedAttempts[0]
       const retryAfter = Math.ceil(
         (this.WINDOW_MS - (now - oldestAttempt)) / 1000,
       )
@@ -63,21 +67,52 @@ export class EmailThrottlerGuard implements CanActivate {
       throw new HttpException(
         {
           code: 'TOO_MANY_REQUESTS',
-          message: `Too many login attempts. Please try again in ${retryAfter} seconds.`,
+          message: `Too many failed login attempts. Please try again in ${retryAfter} seconds.`,
           retryAfter,
         },
         HttpStatus.TOO_MANY_REQUESTS,
       )
     }
 
-    // Record this attempt
-    emailAttempts.push(now)
-    this.attempts.set(key, emailAttempts)
+    return true
+  }
 
-    this.logger.debug(
-      `Login attempt ${emailAttempts.length}/${this.LIMIT} for email: ${email}`,
+  /**
+   * Record a failed login attempt for the given email
+   * Called by auth service when login fails
+   */
+  recordFailedAttempt(email: string): void {
+    const key = this.getKey(email)
+    const now = Date.now()
+    const attempts = this.failedAttempts.get(key) || []
+
+    // Remove old attempts outside the window
+    const recentAttempts = attempts.filter(
+      (timestamp) => now - timestamp < this.WINDOW_MS,
     )
 
-    return true
+    recentAttempts.push(now)
+    this.failedAttempts.set(key, recentAttempts)
+
+    this.logger.debug(
+      `Failed login recorded for ${email}. Total failed: ${recentAttempts.length}/${this.LIMIT}`,
+    )
+  }
+
+  /**
+   * Clear failed attempts for a successful login
+   * Called by auth service when login succeeds
+   */
+  clearAttempts(email: string): void {
+    const key = this.getKey(email)
+    this.failedAttempts.delete(key)
+    this.logger.debug(`Cleared failed attempts for ${email} (successful login)`)
+  }
+
+  /**
+   * Get the cache key for an email
+   */
+  private getKey(email: string): string {
+    return `login:${email.toLowerCase()}`
   }
 }

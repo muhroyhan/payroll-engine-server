@@ -8,6 +8,7 @@ import { JwtStrategy } from './strategies/jwt.strategy'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { PrismaModule } from '@src/database/prisma.module'
 import { AUTH_CONFIG } from './auth.config'
+import { EmailThrottlerGuard } from './guards/email-throttler.guard'
 
 @Module({
   imports: [
@@ -29,7 +30,7 @@ import { AUTH_CONFIG } from './auth.config'
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, EmailThrottlerGuard],
+  exports: [AuthService, EmailThrottlerGuard],
 })
 export class AuthModule {}
