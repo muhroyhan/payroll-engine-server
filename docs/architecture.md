@@ -1,418 +1,202 @@
-# Architecture Documentation
+# Code Architecture
 
 ## Overview
 
-This is a scalable, maintainable payroll engine built with NestJS. The architecture is organized into distinct layers following Domain-Driven Design (DDD) and Clean Architecture principles.
-
-## Directory Structure
-
-```
-src/
-├── common/                      # Shared utilities and cross-cutting concerns
-│   ├── decorators/             # Custom decorators
-│   ├── guards/                 # Authentication & authorization guards
-│   ├── types/                  # Shared TypeScript types
-│   ├── exceptions/             # Exception classes (new)
-│   ├── filters/                # Global exception filters (new)
-│   ├── pipes/                  # Validation pipes (new)
-│   ├── constants/              # Application constants (new)
-│   └── utils/                  # Utility functions (new)
-│
-├── config/                     # Configuration management
-│   ├── app.config.ts
-│   ├── auth.config.ts
-│   ├── db.config.ts
-│   └── validation.ts
-│
-├── database/                   # Data access layer
-│   ├── prisma/                # Database connection (new)
-│   ├── prisma.module.ts
-│   └── prisma.service.ts
-│
-├── domain/                     # Core business logic (Domain layer)
-│   ├── employee/
-│   │   ├── entities/          # Domain entities
-│   │   ├── repositories/      # Repository interfaces
-│   │   ├── services/          # Business logic
-│   │   └── employee.entity.ts
-│   │
-│   ├── payroll/
-│   │   ├── entities/
-│   │   ├── repositories/
-│   │   ├── services/
-│   │   ├── calculation.service.ts
-│   │   ├── payroll-engine.service.ts
-│   │   ├── proration.service.ts
-│   │   └── rule-evaluator.service.ts
-│   │
-│   ├── salary/
-│   │   ├── entities/
-│   │   ├── repositories/
-│   │   ├── services/
-│   │   └── salary-component.entity.ts
-│   │
-│   └── shared/
-│       ├── repository.interface.ts
-│       └── money.value-object.ts
-│
-├── infra/                      # Infrastructure & cross-cutting concerns
-│   ├── logging/
-│   │   └── logging.service.ts
-│   ├── queue/
-│   │   ├── payroll.processor.ts
-│   │   └── queue.module.ts
-│   └── storage/
-│       └── file-storage.service.ts
-│
-├── modules/                    # Feature modules (Application layer)
-│   ├── auth/
-│   │   ├── controllers/        # HTTP endpoints
-│   │   ├── services/           # Module services
-│   │   ├── dto/                # Data transfer objects
-│   │   ├── guards/             # Auth-specific guards
-│   │   ├── strategies/         # Passport strategies
-│   │   ├── types/              # Module types
-│   │   └── auth.module.ts
-│   │
-│   ├── employee/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   ├── types/
-│   │   └── employee.module.ts
-│   │
-│   ├── payroll/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   ├── processors/         # Queue processors
-│   │   └── payroll.module.ts
-│   │
-│   ├── payslip/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   └── payslip.module.ts
-│   │
-│   ├── salary-component/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   └── salary-component.module.ts
-│   │
-│   ├── tenant/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   └── tenant.module.ts
-│   │
-│   ├── users/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── dto/
-│   │   └── users.module.ts
-│   │
-│   └── audit/
-│       ├── controllers/
-│       ├── services/
-│       ├── dto/
-│       └── audit.module.ts
-│
-├── app.module.ts               # Root module
-└── main.ts                     # Application entry point
-```
-
-## Architectural Layers
-
-### 1. **Common Layer** (`src/common/`)
-
-Shared utilities and infrastructure concerns used across the entire application.
-
-**Responsibilities:**
-
-- Decorators: Custom HTTP decorators (`@CurrentUser`, etc.)
-- Guards: Authentication/authorization logic
-- Exceptions: Custom exception hierarchy for consistent error handling
-- Filters: Global exception filters for centralized error responses
-- Pipes: Input validation and transformation
-- Constants: Application-wide constants
-- Types: Shared TypeScript interfaces
-
-**Key Files:**
-
-- `exceptions/base.exception.ts` - Base exception class
-- `filters/global-exception.filter.ts` - Centralized error handling
-- `pipes/validation.pipe.ts` - DTO validation
-
-### 2. **Config Layer** (`src/config/`)
-
-Configuration management for different environments.
-
-**Responsibilities:**
-
-- Database configuration
-- Authentication settings
-- Application settings
-- Validation schemas
-
-### 3. **Database Layer** (`src/database/`)
-
-Data access abstraction using Prisma ORM.
-
-**Responsibilities:**
-
-- Prisma client initialization
-- Database service
-- Connection management
-
-**Note:** Consider implementing the Repository pattern here for better abstraction.
-
-### 4. **Domain Layer** (`src/domain/`)
-
-Core business logic and domain models (Domain-Driven Design).
-
-**Responsibilities:**
-
-- Business entities
-- Value objects
-- Business rules and logic
-- Repository interfaces (contracts)
-- Domain services
-
-**Key Entities:**
-
-- `Employee` - Employee information and employment details
-- `SalaryComponent` - Salary component definitions
-- `Payroll` - Payroll calculations and management
-- `PayslipPeriod` - Payroll periods
-
-**Guidelines:**
-
-- ✅ Can import from domain layer only
-- ✅ Can define repository interfaces
-- ❌ DO NOT import from modules (causes circular dependencies)
-- ❌ DO NOT import from HTTP/infrastructure concerns
-
-### 5. **Infrastructure Layer** (`src/infra/`)
-
-Cross-cutting concerns and infrastructure services.
-
-**Responsibilities:**
-
-- Logging
-- Message queue/event processing
-- File storage
-- External service integration
-
-**Modules:**
-
-- `logging/` - Centralized logging service
-- `queue/` - Async job processing
-- `storage/` - File upload/download handling
-
-### 6. **Application Layer** (`src/modules/`)
-
-Feature modules that handle HTTP requests and coordinate domain logic.
-
-**Standard Module Structure:**
-
-```
-module/
-├── controllers/          # HTTP endpoints
-├── services/            # Business logic orchestration
-├── dto/                 # Data transfer objects (Input/Output)
-├── types/               # Module-specific types
-├── guards/              # Module-specific guards (if any)
-├── strategies/          # Module-specific strategies (if any)
-└── module.module.ts     # Module definition
-```
-
-**Module Responsibilities:**
-
-- Handle HTTP requests
-- Validate input (DTOs)
-- Coordinate with domain services
-- Format responses
-
-**Guidelines:**
-
-- ✅ Import from common, config, database, domain, infra
-- ✅ Import from other modules carefully (avoid circular)
-- ❌ DO NOT contain business logic (move to domain)
-- ❌ DO NOT create tight coupling with infrastructure
-
-## Dependency Flow
-
-```
-                    HTTP Request
-                         ↓
-        ┌────────────────────────────────┐
-        │   Application Layer (Modules)  │
-        │   ├─ Controllers               │
-        │   └─ Services                  │
-        └────────────────────────────────┘
-                    ↓ uses
-        ┌────────────────────────────────┐
-        │      Domain Layer              │
-        │   ├─ Entities                  │
-        │   ├─ Services                  │
-        │   └─ Interfaces                │
-        └────────────────────────────────┘
-                    ↓ uses
-        ┌────────────────────────────────┐
-        │     Infrastructure Layer       │
-        │   ├─ Database                  │
-        │   ├─ Queue                     │
-        │   └─ Logging                   │
-        └────────────────────────────────┘
-                    ↓ uses
-        ┌────────────────────────────────┐
-        │      Common Layer              │
-        │   ├─ Utilities                 │
-        │   ├─ Exceptions                │
-        │   └─ Guards                    │
-        └────────────────────────────────┘
-```
-
-**Golden Rule:** Each layer can only import from layers below it. Higher layers cannot import from lower layers (prevents circular dependencies).
-
-## Key Patterns
-
-### 1. Repository Pattern
-
-Domain defines repository interfaces; modules implement them.
-
-```typescript
-// domain/employee/repositories/employee.repository.interface.ts
-export interface IEmployeeRepository {
-  create(data: CreateEmployeeInput): Promise<Employee>
-  findById(id: string): Promise<Employee | null>
-}
-
-// modules/employee/employee.service.ts
-export class EmployeeService {
-  constructor(private employeeRepository: IEmployeeRepository) {}
-}
-```
-
-### 2. Service Delegation Pattern
-
-Controllers delegate to services, services delegate to domain.
-
-```
-Controller → Module Service → Domain Service → Repository
-```
-
-### 3. DTO Pattern
-
-Use DTOs for input validation and response shaping.
-
-```typescript
-// modules/employee/dto/create-employee.dto.ts
-export class CreateEmployeeDto {
-  @IsEmail()
-  email: string
-
-  @IsString()
-  fullName: string
-}
-```
-
-## Error Handling
-
-Use the exception hierarchy in `src/common/exceptions/`:
-
-```typescript
-// ValidationException for input validation
-throw new ValidationException('Email already exists')
-
-// NotFoundException for missing resources
-throw new NotFoundException('Employee', employeeId)
-
-// BusinessLogicException for domain violations
-throw new BusinessLogicException(
-  'INSUFFICIENT_SALARY_COMPONENTS',
-  'Cannot calculate payroll without salary components',
-)
-```
-
-## Testing Strategy
-
-### Unit Tests
-
-- Test domain entities and services
-- Test module services in isolation
-- Location: `*.spec.ts` files
-
-### Integration Tests
-
-- Test API endpoints with real/mock database
-- Location: `test/e2e/`
-
-### Database Tests
-
-- Use Prisma testing utilities
-- Location: Database migration tests
-
-## Import Best Practices
-
-### ✅ DO
-
-```typescript
-// Import from absolute paths (configured in tsconfig)
-import { EmployeeService } from '@src/modules/employee/services'
-import { IEmployeeRepository } from '@src/domain/employee/repositories'
-import { ValidationException } from '@src/common/exceptions'
-
-// Import from barrels (index.ts)
-import { EmployeeController } from './controllers'
-```
-
-### ❌ DON'T
-
-```typescript
-// Don't use relative paths beyond immediate parent
-import { EmployeeService } from '../../../../modules/employee/services'
-
-// Don't create circular dependencies
-// Don't import implementation from domain in modules and vice versa
-```
-
-## Module Dependencies
-
-```
-modules/
-  ├─ auth          (depends on: common, config, database, infra/logging)
-  ├─ employee      (depends on: auth, common, config, database, domain/employee)
-  ├─ payroll       (depends on: employee, domain/payroll, infra/queue)
-  ├─ payslip       (depends on: payroll, common, database)
-  ├─ salary-comp.  (depends on: domain/salary, database)
-  ├─ tenant        (depends on: auth, common, database)
-  ├─ users         (depends on: auth, common, config, database)
-  └─ audit         (depends on: common, database, infra/logging)
-```
-
-## Future Improvements
-
-1. **CQRS Pattern** - Separate read and write operations for complex queries
-2. **Event Sourcing** - Track all changes for audit purposes
-3. **Microservices** - If payroll processing becomes complex
-4. **Caching Layer** - Redis integration for performance
-5. **GraphQL** - Alternative to REST API
-6. **API Versioning** - Support multiple API versions
-7. **Webhooks** - External integrations for payroll events
-
-## Code Review Checklist
-
-- [ ] Code follows the directory structure
-- [ ] Controller delegates to service
-- [ ] Services use domain entities/interfaces
-- [ ] DTOs used for all inputs
-- [ ] Proper exception types used
-- [ ] No circular dependencies
-- [ ] Tests exist for new features
-- [ ] Documentation updated
+This is a **NestJS** REST API server built with:
+
+| Layer         | Technology                                 |
+| ------------- | ------------------------------------------ |
+| Framework     | NestJS 11 (modular, DI-based)              |
+| HTTP Adapter  | Fastify (replaces Express for performance) |
+| ORM           | Prisma 7 with `@prisma/adapter-pg`         |
+| Database      | PostgreSQL 17                              |
+| Auth          | Passport.js + JWT (HS256)                  |
+| Validation    | class-validator + class-transformer        |
+| Documentation | Swagger (dev only, at `/docs`)             |
+| Runtime       | Node.js 22 / Bun                           |
+| Container     | Docker + Docker Compose                    |
 
 ---
 
-_Last Updated: February 18, 2026_
+## Module Structure
+
+```
+AppModule (root)
+│
+├── ConfigModule (global)       — env vars accessible everywhere
+├── ThrottlerModule (global)    — global 100 req/min rate limit
+│
+└── AuthModule
+    ├── PrismaModule            — database access
+    ├── JwtModule               — token sign/verify
+    ├── PassportModule          — auth strategy runner
+    ├── AuthController          — HTTP endpoints
+    ├── AuthService             — business logic
+    ├── JwtStrategy             — Passport JWT validation
+    ├── JwtAuthGuard            — applied globally (APP_GUARD)
+    └── EmailThrottlerGuard     — per-endpoint, email-based fail limiter
+```
+
+---
+
+## Global Providers (registered in `AppModule`)
+
+| Provider                | Type       | Purpose                                                     |
+| ----------------------- | ---------- | ----------------------------------------------------------- |
+| `GlobalExceptionFilter` | APP_FILTER | Catches all unhandled exceptions, normalizes error response |
+| `ValidationPipe`        | APP_PIPE   | Validates and transforms request bodies via DTOs            |
+| `ThrottlerGuard`        | APP_GUARD  | Enforces global rate limit (100/60s)                        |
+| `JwtAuthGuard`          | APP_GUARD  | Protects all routes with JWT by default                     |
+
+The `JwtAuthGuard` is global — **all routes require authentication unless decorated with `@Public()`**.
+
+---
+
+## Request Lifecycle
+
+```
+HTTP Request
+     │
+     ▼
+Fastify HTTP adapter
+     │
+     ▼
+Global Rate Limiter (ThrottlerGuard)   — 100 req/min global
+     │
+     ▼
+Global JWT Guard (JwtAuthGuard)        — validate Bearer token
+│    │
+│    └── @Public() route? → skip JWT check
+│
+▼
+Route-level Guards (e.g. EmailThrottlerGuard on POST /auth/login)
+     │
+     ▼
+Global Validation Pipe                 — validate & transform request body via DTO
+     │
+     ▼
+Controller method
+     │
+     ▼
+Service layer                          — business logic + Prisma queries
+     │
+     ▼
+Response
+     │
+     ▼ (on error anywhere above)
+GlobalExceptionFilter                  — formats error into { code, message, ... }
+```
+
+---
+
+## Authentication Architecture
+
+### JWT Strategy
+
+- Tokens extracted from `Authorization: Bearer <token>` header
+- Validated with `JwtStrategy` (Passport): checks signature + expiry
+- On success, `validate()` returns an `AuthUser` object attached to `request.user`
+- `AuthUser` contains: `userId`, `email`, `role`, `tenantId`
+
+### Token Pair Design
+
+- **Access token** — short-lived (15 min), used for API calls
+- **Refresh token** — long-lived (7 days), used only to issue a new token pair
+- Refresh token is **stored as a bcrypt hash** in `User.refreshToken` — the plain token is only sent to the client once
+
+### Rate Limiting — Two Layers
+
+1. **Global throttler** (`@nestjs/throttler`) — 100 requests per 60 seconds per IP, applied to all routes
+2. **Email-based throttler** (`EmailThrottlerGuard`) — 5 **failed** login attempts per 15 minutes per email address; applied only to `POST /auth/login`. Successful logins reset the counter.
+
+---
+
+## Multi-Tenancy
+
+Every resource (Employee, SalaryComponent, Payslip, etc.) holds a `tenantId` foreign key.  
+All queries must be scoped by `tenantId` to prevent cross-tenant data leaks.  
+The `tenantId` is embedded in the JWT payload and extracted from `@CurrentUser()` in controllers.
+
+---
+
+## Data Layer
+
+### PrismaService
+
+`PrismaService` extends `PrismaClient` and is provided by `PrismaModule`. It uses the `@prisma/adapter-pg` driver for a managed connection pool.
+
+### Connection URL
+
+The DB connection string is built once in `src/database/database-url.ts` via `buildDatabaseUrl()` and imported by:
+
+- `PrismaService` (runtime)
+- `prisma.config.ts` (migrations/CLI)
+- `prisma/seed.ts` (seeding)
+
+---
+
+## Error Handling
+
+All exceptions flow through `GlobalExceptionFilter`. The standard error response shape is:
+
+```json
+{
+  "code": "VALIDATION_ERROR",
+  "message": "Validation failed",
+  "errors": [...],
+  "statusCode": 400,
+  "timestamp": "2026-02-19T05:00:00.000Z",
+  "path": "/v1/auth/login"
+}
+```
+
+Custom exception classes in `src/common/exceptions/`:
+
+- `BaseException`
+- `BusinessLogicException`
+- `ForbiddenException`
+- `NotFoundException`
+- `UnauthorizedException`
+- `ValidationException`
+
+---
+
+## Naming Conventions
+
+| Thing         | Convention           | Example                           |
+| ------------- | -------------------- | --------------------------------- |
+| Files         | kebab-case           | `auth.service.ts`                 |
+| Classes       | PascalCase           | `AuthService`                     |
+| Methods/vars  | camelCase            | `validateUser()`                  |
+| DB columns    | camelCase (Prisma)   | `tenantId`, `isActive`            |
+| Enums values  | snake_case           | `tenant_admin`, `payroll_officer` |
+| HTTP routes   | kebab-case           | `/auth/login`, `/payslip-items`   |
+| Env variables | SCREAMING_SNAKE_CASE | `JWT_SECRET`, `DB_HOST`           |
+
+---
+
+## Environment Variables
+
+| Variable      | Description                    |
+| ------------- | ------------------------------ |
+| `DB_HOST`     | PostgreSQL host                |
+| `DB_PORT`     | PostgreSQL port (default 5432) |
+| `DB_USERNAME` | PostgreSQL username            |
+| `DB_PASSWORD` | PostgreSQL password            |
+| `JWT_SECRET`  | Secret for signing JWT tokens  |
+| `PORT`        | API server port (default 3000) |
+| `NODE_ENV`    | `development` / `production`   |
+
+---
+
+## Development Scripts
+
+| Script          | Command                       | Description                               |
+| --------------- | ----------------------------- | ----------------------------------------- |
+| `bun start`     | `docker compose up --build`   | Start API + DB in Docker                  |
+| `bun start:dev` | `nest start --watch`          | Run NestJS locally with hot reload        |
+| `bun build`     | `nest build`                  | Compile TypeScript to `dist/`             |
+| `bun seed`      | `tsx prisma/seed.ts`          | Seed database with default tenant + admin |
+| `bun test`      | `jest`                        | Unit tests                                |
+| `bun test:e2e`  | `jest --config jest-e2e.json` | E2E tests                                 |
+| `bun lint`      | `eslint ... --fix`            | Lint and auto-fix                         |
