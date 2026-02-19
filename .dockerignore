@@ -22,7 +22,6 @@
 **/charts
 **/docker-compose*
 **/compose.y*ml
-**/Dockerfile*
 **/node_modules
 **/npm-debug.log
 **/obj
@@ -30,5 +29,18 @@
 **/values.dev.yaml
 **/build
 **/dist
+**/dist
+# Compiled output is rebuilt in Docker — skip the local version
+dist
+
+# Test files and coverage reports
+**/coverage
+coverage
+test
+
+# Dev-only Docker files
+Dockerfile.dev
+
 LICENSE
 README.md
+README.Docker.md

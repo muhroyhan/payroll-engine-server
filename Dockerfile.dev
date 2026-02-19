@@ -1,0 +1,12 @@
+FROM oven/bun:1-alpine
+
+WORKDIR /app
+
+# Copy package manifest and install all dependencies (including devDependencies)
+# node_modules will live inside the container (not overwritten by host volume)
+COPY package.json ./
+RUN bun install
+
+# Source code is mounted as a volume at runtime (see compose.yaml)
+# This enables hot reload — changes on host are reflected immediately
+CMD ["bun", "run", "start:dev"]
