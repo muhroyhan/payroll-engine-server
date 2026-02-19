@@ -25,8 +25,6 @@ export const AUTH_CONFIG = {
 
   // Throttling Configuration (@nestjs/throttler)
   THROTTLE: {
-    LOGIN_LIMIT: 5, // Max attempts per window
-    LOGIN_TTL: 15 * 60, // 15 minutes in seconds
     GLOBAL_LIMIT: 100, // Global rate limit per minute
     GLOBAL_TTL: 60, // 1 minute in seconds
   },

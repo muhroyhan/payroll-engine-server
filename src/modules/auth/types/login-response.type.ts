@@ -1,8 +1,10 @@
+import type { Role } from '@src/common/types/role.type'
+
 export type SafeUser = {
   id: string
   email: string
   fullName: string
-  role: string
+  role: Role
   tenantId: string
 }
 

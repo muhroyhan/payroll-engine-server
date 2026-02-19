@@ -10,13 +10,18 @@ export class ValidationPipe implements PipeTransform {
       return value
     }
 
-    const object = plainToInstance(metadata.metatype, value)
+    const object = plainToInstance(metadata.metatype, value, {
+      enableImplicitConversion: true,
+    })
 
     if (typeof object !== 'object') {
       return value
     }
 
-    const errors = await validate(object as object)
+    const errors = await validate(object as object, {
+      whitelist: true,         // strip properties not in DTO
+      forbidNonWhitelisted: false, // strip silently (don't throw on unknown fields)
+    })
 
     if (errors.length > 0) {
       const details = errors.reduce(

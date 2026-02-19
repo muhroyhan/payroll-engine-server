@@ -9,6 +9,14 @@ import {
 import { FastifyReply, FastifyRequest } from 'fastify'
 
 /**
+ * Module-level singleton store — shared across ALL instances of this guard.
+ * This fixes the NestJS @UseGuards(Class) vs DI injection two-instance problem:
+ * @UseGuards(EmailThrottlerGuard) creates a fresh instance at the route level,
+ * but this store lives outside the class so all instances share the same Map.
+ */
+const failedAttemptsStore = new Map<string, number[]>()
+
+/**
  * Custom Email-Based Rate Limiter Guard for Fastify
  * Tracks FAILED login attempts by email address (not IP)
  * 5 failed attempts per 15 minutes per email
@@ -20,7 +28,6 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 @Injectable()
 export class EmailThrottlerGuard implements CanActivate {
   private readonly logger = new Logger(EmailThrottlerGuard.name)
-  private readonly failedAttempts = new Map<string, number[]>()
   private readonly LIMIT = 5
   private readonly WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 
@@ -44,30 +51,29 @@ export class EmailThrottlerGuard implements CanActivate {
     const key = this.getKey(email)
 
     // Get failed attempt history for this email
-    let failedAttempts = this.failedAttempts.get(key) || []
+    let attempts = failedAttemptsStore.get(key) || []
 
     // Remove old attempts outside the window
-    failedAttempts = failedAttempts.filter(
-      (timestamp) => now - timestamp < this.WINDOW_MS,
-    )
+    attempts = attempts.filter((timestamp) => now - timestamp < this.WINDOW_MS)
 
     // Check if limit exceeded (only failed attempts count)
-    if (failedAttempts.length >= this.LIMIT) {
+    if (attempts.length >= this.LIMIT) {
       this.logger.warn(
-        `Rate limit exceeded for email: ${email}. Failed attempts: ${failedAttempts.length}`,
+        `Rate limit exceeded for email: ${email}. Failed attempts: ${attempts.length}`,
       )
 
       // Set Retry-After header (seconds)
-      const oldestAttempt = failedAttempts[0]
+      const oldestAttempt = attempts[0]
       const retryAfter = Math.ceil(
         (this.WINDOW_MS - (now - oldestAttempt)) / 1000,
       )
       reply.header('Retry-After', retryAfter.toString())
 
+      const minutes = Math.ceil(retryAfter / 60)
       throw new HttpException(
         {
           code: 'TOO_MANY_REQUESTS',
-          message: `Too many failed login attempts. Please try again in ${retryAfter} seconds.`,
+          message: `Too many login attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`,
           retryAfter,
         },
         HttpStatus.TOO_MANY_REQUESTS,
@@ -84,7 +90,7 @@ export class EmailThrottlerGuard implements CanActivate {
   recordFailedAttempt(email: string): void {
     const key = this.getKey(email)
     const now = Date.now()
-    const attempts = this.failedAttempts.get(key) || []
+    const attempts = failedAttemptsStore.get(key) || []
 
     // Remove old attempts outside the window
     const recentAttempts = attempts.filter(
@@ -92,7 +98,7 @@ export class EmailThrottlerGuard implements CanActivate {
     )
 
     recentAttempts.push(now)
-    this.failedAttempts.set(key, recentAttempts)
+    failedAttemptsStore.set(key, recentAttempts)
 
     this.logger.debug(
       `Failed login recorded for ${email}. Total failed: ${recentAttempts.length}/${this.LIMIT}`,
@@ -105,7 +111,7 @@ export class EmailThrottlerGuard implements CanActivate {
    */
   clearAttempts(email: string): void {
     const key = this.getKey(email)
-    this.failedAttempts.delete(key)
+    failedAttemptsStore.delete(key)
     this.logger.debug(`Cleared failed attempts for ${email} (successful login)`)
   }
 

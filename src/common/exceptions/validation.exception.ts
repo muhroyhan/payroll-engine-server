@@ -2,6 +2,6 @@ import { BaseException } from './base.exception'
 
 export class ValidationException extends BaseException {
   constructor(message: string, details?: Record<string, unknown>) {
-    super('VALIDATION_ERROR', message, 400, details)
+    super('VALIDATION_ERROR', message, 422, details)
   }
 }

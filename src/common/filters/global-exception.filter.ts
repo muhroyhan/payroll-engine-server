@@ -29,10 +29,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     } else if (exception instanceof HttpException) {
       statusCode = exception.getStatus()
       const exceptionResponse = exception.getResponse()
-      body = {
-        code: exception.name,
-        message: exception.message,
-        ...(typeof exceptionResponse === 'object' && exceptionResponse),
+      if (typeof exceptionResponse === 'string') {
+        body = { code: exception.name, message: exceptionResponse }
+      } else {
+        const resp = exceptionResponse as Record<string, unknown>
+        // Extract message cleanly — NestJS validation errors put an array in resp.message
+        const message = Array.isArray(resp.message)
+          ? (resp.message as string[]).join(', ')
+          : typeof resp.message === 'string'
+            ? resp.message
+            : exception.message
+        body = {
+          code: (resp.code as string) ?? exception.name,
+          message,
+          ...(resp.errors ? { errors: resp.errors } : {}),
+        }
       }
     } else if (exception instanceof Error) {
       body.message = exception.message

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import * as bcrypt from 'bcrypt'
+import { createHash, randomUUID } from 'crypto'
 
 import { JwtPayload } from '../types/jwt-payload.type'
 import { LoginResponse, SafeUser } from '../types/login-response.type'
@@ -78,9 +79,13 @@ export class AuthService {
         this.jwt.signAsync(payload as Record<string, unknown>, {
           expiresIn: AUTH_CONFIG.TOKEN.ACCESS_EXPIRY_SECONDS,
         }),
-        this.jwt.signAsync(payload as Record<string, unknown>, {
-          expiresIn: AUTH_CONFIG.TOKEN.REFRESH_EXPIRY_SECONDS,
-        }),
+        // jti (JWT ID) makes every refresh token unique, enabling proper token
+        // rotation detection. Without jti, tokens issued within the same second
+        // would be identical (same iat/exp), making rotation undetectable.
+        this.jwt.signAsync(
+          { ...payload, jti: randomUUID() } as Record<string, unknown>,
+          { expiresIn: AUTH_CONFIG.TOKEN.REFRESH_EXPIRY_SECONDS },
+        ),
       ])
 
       return { accessToken, refreshToken }
@@ -94,18 +99,17 @@ export class AuthService {
 
   /**
    * Store hashed refresh token in database
-   * Prevents token compromise if database is breached
-   * The actual token is only sent to client once
+   * Uses SHA-256 (not bcrypt) because bcrypt truncates at 72 bytes — JWT tokens
+   * are longer than 72 bytes, so bcrypt would treat different tokens as identical.
+   * SHA-256 has no length limit and is sufficient for opaque token verification
+   * (the JWT signature already guarantees integrity).
    */
   private async storeRefreshToken(
     userId: string,
     refreshToken: string,
   ): Promise<void> {
     try {
-      const hash = await bcrypt.hash(
-        refreshToken,
-        AUTH_CONFIG.PASSWORD.BCRYPT_SALT_ROUNDS,
-      )
+      const hash = createHash('sha256').update(refreshToken).digest('hex')
 
       await this.prisma.user.update({
         where: { id: userId },
@@ -216,8 +220,9 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_CONFIG.ERROR.INVALID_REFRESH_TOKEN)
     }
 
-    // Verify provided token matches stored hash
-    const tokenValid = await bcrypt.compare(refreshToken, user.refreshToken)
+    // Verify provided token matches stored SHA-256 hash
+    const tokenHash = createHash('sha256').update(refreshToken).digest('hex')
+    const tokenValid = tokenHash === user.refreshToken
 
     if (!tokenValid) {
       this.logger.warn(`Invalid refresh token for user: ${user.id}`)

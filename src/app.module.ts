@@ -1,4 +1,4 @@
-import { Module, ValidationPipe } from '@nestjs/common'
+import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
@@ -7,9 +7,12 @@ import { AUTH_CONFIG } from './modules/auth/auth.config'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
+import { ValidationPipe } from './common/pipes/validation.pipe'
+import { PrismaModule } from './database/prisma.module'
 
 @Module({
   imports: [
+    PrismaModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [
@@ -30,11 +33,6 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
         ttl: AUTH_CONFIG.THROTTLE.GLOBAL_TTL,
         limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
       },
-      {
-        name: 'login',
-        ttl: AUTH_CONFIG.THROTTLE.LOGIN_TTL,
-        limit: AUTH_CONFIG.THROTTLE.LOGIN_LIMIT,
-      },
     ]),
     AuthModule,
   ],
@@ -45,14 +43,7 @@ import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
     },
     {
       provide: APP_PIPE,
-      useFactory: () =>
-        new ValidationPipe({
-          transform: true,
-          transformOptions: {
-            enableImplicitConversion: true,
-          },
-          whitelist: true,
-        }),
+      useClass: ValidationPipe,
     },
     {
       provide: APP_GUARD,
