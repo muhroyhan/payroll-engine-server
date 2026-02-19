@@ -56,20 +56,20 @@ Root entity. Every record in the system belongs to a tenant (multi-tenancy).
 
 System users who can log in. Scoped to a tenant.
 
-| Column       | Type     | Notes                                         |
-| ------------ | -------- | --------------------------------------------- |
-| id           | String   | UUID, PK                                      |
-| tenantId     | String   | FK → Tenant                                   |
-| email        | String   | Unique across all tenants                     |
-| password     | String   | bcrypt hash                                   |
-| fullName     | String   |                                               |
-| role         | Role     | enum: tenant_admin / payroll_officer / viewer |
-| isActive     | Boolean  | Default true                                  |
-| refreshToken | String?  | bcrypt hash of last issued refresh token      |
-| createdAt    | DateTime |                                               |
-| createdBy    | String   |                                               |
-| updatedAt    | DateTime | Auto-updated                                  |
-| updatedBy    | String   |                                               |
+| Column       | Type     | Notes                                           |
+| ------------ | -------- | ----------------------------------------------- |
+| id           | String   | UUID, PK                                        |
+| tenantId     | String   | FK → Tenant                                     |
+| email        | String   | Unique across all tenants                       |
+| password     | String   | bcrypt hash                                     |
+| fullName     | String   |                                                 |
+| role         | Role     | enum: tenant_admin / payroll_officer / viewer   |
+| isActive     | Boolean  | Default true                                    |
+| refreshToken | String?  | SHA-256 hex digest of last issued refresh token |
+| createdAt    | DateTime |                                                 |
+| createdBy    | String   |                                                 |
+| updatedAt    | DateTime | Auto-updated                                    |
+| updatedBy    | String   |                                                 |
 
 **Indexes:** `(tenantId)`, `(tenantId, isActive)`
 

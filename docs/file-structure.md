@@ -29,12 +29,13 @@ payroll-engine-server/
 src/
 ├── main.ts                     # App entry point: bootstraps Fastify, registers plugins
 ├── app.module.ts               # Root module: wires global config, guards, pipes, filters
-├── constants.ts                # App-wide constants (e.g. bcrypt salt)
+├── constants.ts                # (reserved — no active exports)
 │
 ├── common/                     # Shared utilities used across all modules
 │   ├── decorators/
 │   │   ├── current-user.decorator.ts   # @CurrentUser() — extracts user from JWT context
-│   │   └── public.decorator.ts         # @Public() — marks route as unauthenticated
+│   │   ├── public.decorator.ts         # @Public() — marks route as unauthenticated
+│   │   └── roles.decorator.ts          # @Roles(...roles) — sets required roles metadata on a route
 │   ├── dto/                    # Shared DTOs (if any)
 │   ├── exceptions/             # Custom typed exceptions
 │   │   ├── base.exception.ts
@@ -42,18 +43,21 @@ src/
 │   │   ├── forbidden.exception.ts
 │   │   ├── not-found.exception.ts
 │   │   ├── unauthorized.exception.ts
-│   │   ├── validation.exception.ts
+│   │   ├── validation.exception.ts     # Throws HTTP 422 Unprocessable Entity
 │   │   └── index.ts
 │   ├── filters/
 │   │   ├── global-exception.filter.ts  # Catches all exceptions, formats error response
 │   │   └── index.ts
+│   ├── guards/
+│   │   └── roles.guard.ts              # RolesGuard — checks @Roles() metadata against request.user.role
 │   ├── interceptors/           # (reserved for future interceptors)
 │   ├── middleware/             # (reserved for future middleware)
 │   ├── pipes/
-│   │   ├── validation.pipe.ts          # Global validation pipe configuration
+│   │   ├── validation.pipe.ts          # Global validation pipe (whitelist, transform, throws 422)
 │   │   └── index.ts
 │   ├── types/
-│   │   └── auth-user.type.ts   # AuthUser — the user object attached to request after JWT validation
+│   │   ├── auth-user.type.ts   # AuthUser — user object attached to request after JWT validation
+│   │   └── role.type.ts        # Role — union type: 'tenant_admin' | 'payroll_officer' | 'viewer'
 │   └── utils/                  # (reserved for future utilities)
 │
 ├── database/
@@ -88,7 +92,7 @@ src/
         ├── strategies/
         │   └── jwt.strategy.ts         # Passport JWT strategy — validates Bearer token
         └── types/
-            ├── jwt-payload.type.ts     # JWT payload shape { sub, email, role, tenantId }
+            ├── jwt-payload.type.ts     # JWT payload shape { sub, email, role, tenantId } + jti (refresh only)
             └── login-response.type.ts  # LoginResponse & SafeUser shapes
 ```
 

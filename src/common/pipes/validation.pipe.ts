@@ -19,7 +19,7 @@ export class ValidationPipe implements PipeTransform {
     }
 
     const errors = await validate(object as object, {
-      whitelist: true,         // strip properties not in DTO
+      whitelist: true, // strip properties not in DTO
       forbidNonWhitelisted: false, // strip silently (don't throw on unknown fields)
     })
 

@@ -40,9 +40,11 @@ AuthService.validateUser(email, password)
   ▼
 AuthService.login(user)
   │  1. Generate access token (JWT, 15 min, HS256)
+  │     Payload: { sub, email, role, tenantId }
   │  2. Generate refresh token (JWT, 7 days, HS256)
-  │     JWT Payload: { sub, email, role, tenantId }
-  │  3. bcrypt.hash(refreshToken) → store hash in User.refreshToken
+  │     Payload: { sub, email, role, tenantId, jti: randomUUID() }
+  │     (jti guarantees uniqueness even when tokens are issued in the same second)
+  │  3. SHA-256(refreshToken) → store hex digest in User.refreshToken
   │  4. Clear failed attempt counter for this email
   │
   ▼
@@ -107,8 +109,8 @@ AuthService.refresh(refreshToken)
   │  3. Query DB for user by payload.sub
   │  4. If user not found or inactive → 401
   │  5. If User.refreshToken is null → already logged out → 401
-  │  6. bcrypt.compare(refreshToken, User.refreshToken hash)
-  │  7. If mismatch → 401
+  │  6. SHA-256(refreshToken) → compare hex digest with User.refreshToken
+  │  7. If mismatch (constant-time string compare) → 401
   │  8. Generate new access + refresh token pair
   │  9. Store new refresh token hash in DB
   │
@@ -166,12 +168,14 @@ Response 200
 
 ## Token Details
 
-| Token         | Expiry | Algorithm | Stored in DB?                               |
-| ------------- | ------ | --------- | ------------------------------------------- |
-| Access token  | 15 min | HS256     | No                                          |
-| Refresh token | 7 days | HS256     | Yes — as bcrypt hash in `User.refreshToken` |
+| Token         | Expiry | Algorithm | Stored in DB?                                      |
+| ------------- | ------ | --------- | -------------------------------------------------- |
+| Access token  | 15 min | HS256     | No                                                 |
+| Refresh token | 7 days | HS256     | Yes — as SHA-256 hex digest in `User.refreshToken` |
 
 ### JWT Payload
+
+**Access token payload:**
 
 ```json
 {
@@ -184,14 +188,31 @@ Response 200
 }
 ```
 
+**Refresh token payload** (same fields + `jti`):
+
+```json
+{
+  "sub": "user-uuid",
+  "email": "user@example.com",
+  "role": "tenant_admin",
+  "tenantId": "tenant-uuid",
+  "jti": "550e8400-e29b-41d4-a716-446655440000",
+  "iat": 1234567890,
+  "exp": 1235172690
+}
+```
+
+> `jti` (JWT ID) is a `randomUUID()` added to refresh tokens only. It guarantees every refresh token is unique regardless of issue time, which is required for reliable token rotation detection.
+
 ---
 
 ## Security Decisions
 
-| Decision                                                      | Reason                                                                                         |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Generic error message for both wrong email and wrong password | Prevents user enumeration — attacker can't distinguish "email not found" from "wrong password" |
-| Unregistered emails not rate-limited                          | Prevents locking out real users by an attacker submitting their email                          |
-| Refresh token stored as bcrypt hash                           | DB breach doesn't expose usable tokens                                                         |
-| Access token not stored                                       | Stateless — no revocation needed for normal logout                                             |
-| `@Public()` opt-out pattern                                   | All routes are protected by default — new routes are secure unless explicitly marked public    |
+| Decision                                                      | Reason                                                                                                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Generic error message for both wrong email and wrong password | Prevents user enumeration — attacker can't distinguish "email not found" from "wrong password"                                                                 |
+| Unregistered emails not rate-limited                          | Prevents locking out real users by an attacker submitting their email                                                                                          |
+| Refresh token stored as SHA-256 hash                          | SHA-256 has no 72-byte input limit (unlike bcrypt which silently truncates) — critical for JWTs which are ~200+ bytes. DB breach doesn't expose usable tokens. |
+| `jti: randomUUID()` in refresh tokens                         | Ensures token uniqueness for rotation detection even when two tokens are issued within the same second                                                         |
+| Access token not stored                                       | Stateless — no revocation needed for normal logout                                                                                                             |
+| `@Public()` opt-out pattern                                   | All routes are protected by default — new routes are secure unless explicitly marked public                                                                    |

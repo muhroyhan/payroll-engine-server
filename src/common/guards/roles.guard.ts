@@ -42,7 +42,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('No authenticated user found')
     }
 
-    if (!requiredRoles.includes(user.role as Role)) {
+    if (!requiredRoles.includes(user.role)) {
       throw new ForbiddenException(
         `Requires one of the following roles: ${requiredRoles.join(', ')}`,
       )
