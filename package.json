@@ -8,7 +8,7 @@
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "concurrently \"docker compose up --build\" \"nest start --watch\"",
+    "start": "docker compose up --build",
     "start:nest": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

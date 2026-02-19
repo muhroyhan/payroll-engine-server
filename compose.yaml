@@ -1,8 +1,36 @@
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    # init: true is the key fix for EADDRINUSE.
+    # It runs tini as PID 1 which properly forwards signals and
+    # reaps zombie processes so the port is released cleanly
+    # before nest --watch restarts the process.
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      # Override DB_HOST: inside Docker, the db is reachable by service name.
+      # Your .env has localhost which only works when running on the host directly.
+      - DB_HOST=db
+    ports:
+      - ${PORT:-3000}:3000
+    volumes:
+      # Mount source for hot reload
+      - .:/app
+      # Anonymous volume keeps container node_modules isolated
+      # from the host, preventing OS/arch conflicts
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:17-alpine
     restart: unless-stopped
-    user: postgres
     env_file:
       - .env
     volumes:
@@ -18,5 +46,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
 volumes:
   db-data:
