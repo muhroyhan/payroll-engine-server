@@ -13,6 +13,13 @@ env:
   IMAGE_NAME: ${{ github.repository }} # e.g. muhroyhan/payroll-engine-server
   FLY_APP: payroll-engine-server # must match app.name in fly.toml
 
+# ─── Workflow-level permissions ──────────────────────────────────────────────
+# packages: write  — allows GITHUB_TOKEN to push images to GHCR
+# contents: write  — allows creating git tags and GitHub Releases
+permissions:
+  contents: write
+  packages: write
+
 # ─── Pipeline ────────────────────────────────────────────────────────────────
 #
 #   test → build-and-push → create-release → db-migrate → deploy
