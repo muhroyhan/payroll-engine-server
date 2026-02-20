@@ -48,4 +48,4 @@ COPY --from=builder /app/prisma/schema.prisma ./prisma/schema.prisma
 
 EXPOSE 3000
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main.js"]
