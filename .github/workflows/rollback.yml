@@ -10,8 +10,9 @@ on:
         description: |
           GHCR image tag to roll back to.
           Examples:
-            sha-a1b2c3d          (from a specific commit)
-            v2026.02.19-5        (from a named release)
+            sha-a1b2c3d          (immutable — from a specific commit)
+            v1.2.3               (semver release tag)
+            latest               (most recent master deploy)
           Find tags in: GitHub → Packages → payroll-engine-server
           Find release names in: GitHub → Releases
         required: true

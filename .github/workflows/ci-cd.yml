@@ -1,4 +1,4 @@
-name: CI/CD — Test, Build & Deploy to Fly.io
+name: CI/CD — Test, Version, Build & Deploy to Fly.io
 
 # ─── Trigger ────────────────────────────────────────────────────────────────
 # Runs on every push to the master branch.
@@ -11,21 +11,22 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }} # e.g. muhroyhan/payroll-engine-server
-  FLY_APP: payroll-engine-server # must match app.name in fly.toml
+  FLY_APP: payroll-engine-server        # must match app.name in fly.toml
 
 # ─── Workflow-level permissions ──────────────────────────────────────────────
-# packages: write  — allows GITHUB_TOKEN to push images to GHCR
-# contents: write  — allows creating git tags and GitHub Releases
+# packages: write  — push images to GHCR
+# contents: write  — push version-bump commit, create git tags, create Releases
 permissions:
   contents: write
   packages: write
 
 # ─── Pipeline ────────────────────────────────────────────────────────────────
 #
-#   test → build-and-push → create-release → db-migrate → deploy
+#   test → version-bump → build-and-push → create-release → db-migrate → deploy
 #
-# DB migrations run BEFORE the new API server is deployed so the schema
-# is always ready when the new code starts up.
+# version-bump commits the new SemVer to package.json + CHANGELOG.md before
+# anything is built, so the image always reflects the correct version number.
+# DB migrations run BEFORE the new API server is deployed.
 
 jobs:
   # ── 1. Lint & Test ──────────────────────────────────────────────────────────
@@ -53,36 +54,185 @@ jobs:
       - name: Unit tests
         run: bun run test
 
-  # ── 2. Build & Push Docker image ────────────────────────────────────────────
-  build-and-push:
-    name: Build & Push Docker Image
+  # ── 2. Bump Version & Update CHANGELOG ─────────────────────────────────────
+  #
+  # Reads the commit history since the last semver tag to decide whether to do
+  # a MAJOR / MINOR / PATCH bump, then:
+  #   • Updates version in package.json
+  #   • Prepends a new section to CHANGELOG.md
+  #   • Commits both files back to master with [skip ci] to avoid looping
+  #   • Outputs the new version/tag for all downstream jobs
+  #
+  # Commit-message rules:
+  #   feat!: / fix!: / breaking:  →  MAJOR (x+1.0.0)
+  #   feat:                        →  MINOR (x.y+1.0)
+  #   anything else                →  PATCH (x.y.z+1)
+  # ────────────────────────────────────────────────────────────────────────────
+  version-bump:
+    name: Bump SemVer & Update Changelog
     runs-on: ubuntu-latest
     needs: test
 
     permissions:
+      contents: write
+
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
+      tag: ${{ steps.bump.outputs.tag }}
+
+    steps:
+      # Full history needed to find the last tag and read commits since then.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version, update changelog, commit
+        id: bump
+        run: |
+          set -e
+
+          # ── Current version from package.json ──────────────────────────────
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+
+          # ── Last semver tag (v{d}.{d}.{d}), ignore any old CalVer tags ──────
+          LAST_TAG=$(git tag --sort=-version:refname \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | head -1 || true)
+          echo "Last semver tag: ${LAST_TAG:-<none>}"
+
+          # ── Commits since last tag (or all commits if no tag yet) ───────────
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"%s" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"%s" "${LAST_TAG}..HEAD")
+          fi
+
+          echo "Commits to analyse:"
+          echo "$COMMITS"
+
+          # ── Determine bump type ─────────────────────────────────────────────
+          BUMP="patch"
+          while IFS= read -r msg; do
+            [[ -z "$msg" ]] && continue
+            [[ "$msg" == *"[skip ci]"* ]] && continue
+
+            if echo "$msg" | grep -qiE '^(feat|fix|refactor|perf|chore)(\(.+\))?!:|^breaking:'; then
+              BUMP="major"
+              break
+            fi
+            if [ "$BUMP" != "major" ] && echo "$msg" | grep -qiE '^feat(\(.+\))?:'; then
+              BUMP="minor"
+            fi
+          done <<< "$COMMITS"
+          echo "Bump type: $BUMP"
+
+          # ── Calculate new version ───────────────────────────────────────────
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          if   [ "$BUMP" = "major" ]; then MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0
+          elif [ "$BUMP" = "minor" ]; then MINOR=$((MINOR+1)); PATCH=0
+          else PATCH=$((PATCH+1))
+          fi
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          TAG="v$NEW_VERSION"
+          echo "New version: $NEW_VERSION  ($TAG)"
+
+          # ── Update package.json ─────────────────────────────────────────────
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = '$NEW_VERSION';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+          # ── Build CHANGELOG section ─────────────────────────────────────────
+          DATE=$(date +'%Y-%m-%d')
+          BREAKING_LIST=""
+          FEATURE_LIST=""
+          FIX_LIST=""
+          OTHER_LIST=""
+
+          while IFS= read -r msg; do
+            [[ -z "$msg" ]] && continue
+            [[ "$msg" == *"[skip ci]"* ]] && continue
+
+            if echo "$msg" | grep -qiE '^(feat|fix|refactor|perf|chore)(\(.+\))?!:|^breaking:'; then
+              BREAKING_LIST="${BREAKING_LIST}- ${msg}"$'\n'
+            elif echo "$msg" | grep -qiE '^feat(\(.+\))?:'; then
+              FEATURE_LIST="${FEATURE_LIST}- ${msg}"$'\n'
+            elif echo "$msg" | grep -qiE '^(fix|hotfix|perf|refactor)(\(.+\))?:'; then
+              FIX_LIST="${FIX_LIST}- ${msg}"$'\n'
+            else
+              OTHER_LIST="${OTHER_LIST}- ${msg}"$'\n'
+            fi
+          done <<< "$COMMITS"
+
+          ENTRY="## [$NEW_VERSION] - $DATE"$'\n'$'\n'
+          [ -n "$BREAKING_LIST" ] && ENTRY="${ENTRY}### Breaking Changes"$'\n'$'\n'"${BREAKING_LIST}"$'\n'
+          [ -n "$FEATURE_LIST"  ] && ENTRY="${ENTRY}### Features"$'\n'$'\n'"${FEATURE_LIST}"$'\n'
+          [ -n "$FIX_LIST"      ] && ENTRY="${ENTRY}### Bug Fixes"$'\n'$'\n'"${FIX_LIST}"$'\n'
+          [ -n "$OTHER_LIST"    ] && ENTRY="${ENTRY}### Other Changes"$'\n'$'\n'"${OTHER_LIST}"$'\n'
+
+          # ── Prepend to CHANGELOG.md (after the "---" separator) ─────────────
+          if [ -f "CHANGELOG.md" ]; then
+            SEPARATOR_LINE=$(grep -n "^---$" CHANGELOG.md | head -1 | cut -d: -f1)
+            if [ -n "$SEPARATOR_LINE" ]; then
+              TEMP=$(mktemp)
+              head -n "$SEPARATOR_LINE" CHANGELOG.md > "$TEMP"
+              printf '\n%s' "$ENTRY" >> "$TEMP"
+              tail -n +"$((SEPARATOR_LINE + 1))" CHANGELOG.md >> "$TEMP"
+              mv "$TEMP" CHANGELOG.md
+            else
+              TEMP=$(mktemp)
+              head -1 CHANGELOG.md > "$TEMP"
+              printf '\n%s' "$ENTRY" >> "$TEMP"
+              tail -n +2 CHANGELOG.md >> "$TEMP"
+              mv "$TEMP" CHANGELOG.md
+            fi
+          else
+            printf '# Changelog\n\n%s' "$ENTRY" > CHANGELOG.md
+          fi
+
+          # ── Commit and push ─────────────────────────────────────────────────
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): bump version to $NEW_VERSION [skip ci]"
+          git push origin master
+
+          # ── Set outputs ─────────────────────────────────────────────────────
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"                 >> "$GITHUB_OUTPUT"
+
+  # ── 3. Build & Push Docker image ────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: version-bump
+
+    permissions:
       contents: read
-      packages: write # required to push to GHCR
+      packages: write
 
     outputs:
       sha_tag: ${{ steps.short-sha.outputs.sha_tag }}
-      calver_tag: ${{ steps.calver.outputs.tag }}
+      version_tag: ${{ needs.version-bump.outputs.tag }}
 
     steps:
+      # Checkout master HEAD so we get the version-bump commit (not trigger SHA)
       - uses: actions/checkout@v4
+        with:
+          ref: master
 
-      # Short commit SHA used for the Docker image tag and release note
       - name: Generate short SHA tag
         id: short-sha
         run: |
           SHA_TAG="sha-$(git rev-parse --short HEAD)"
           echo "sha_tag=$SHA_TAG" >> $GITHUB_OUTPUT
-
-      # CalVer tag: v<YYYY>.<MM>.<DD>-<run_number>  e.g. v2026.02.19-7
-      - name: Generate CalVer release tag
-        id: calver
-        run: |
-          TAG="v$(date +'%Y.%m.%d')-${{ github.run_number }}"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -91,14 +241,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Set up Buildx for cache support
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Attach three tags to every master build:
-      #   latest          → always the newest master image
-      #   sha-<short-sha> → immutable reference per commit (used for rollback)
-      #   v<calver>       → human-readable release tag (used for rollback)
+      # Three tags per build:
+      #   latest                     → always the newest master image
+      #   sha-<short-sha>            → immutable reference per commit
+      #   v{major}.{minor}.{patch}   → semver release tag
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -107,7 +256,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=raw,value=${{ steps.short-sha.outputs.sha_tag }}
-            type=raw,value=${{ steps.calver.outputs.tag }}
+            type=raw,value=${{ needs.version-bump.outputs.tag }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -120,35 +269,47 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ── 3. Create Git Tag & GitHub Release ──────────────────────────────────────
+  # ── 4. Create Git Tag & GitHub Release ──────────────────────────────────────
   create-release:
     name: Create Git Tag & GitHub Release
     runs-on: ubuntu-latest
     needs: build-and-push
 
     permissions:
-      contents: write # required to push tags and create releases
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: master
           fetch-depth: 0
 
       - name: Create and push git tag
         run: |
-          git config user.name "github-actions[bot]"
+          git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ needs.build-and-push.outputs.calver_tag }} \
-            -m "Release ${{ needs.build-and-push.outputs.calver_tag }} — ${{ github.sha }}"
-          git push origin ${{ needs.build-and-push.outputs.calver_tag }}
+          git tag ${{ needs.build-and-push.outputs.version_tag }} \
+            -m "Release ${{ needs.build-and-push.outputs.version_tag }}"
+          git push origin ${{ needs.build-and-push.outputs.version_tag }}
+
+      - name: Read changelog entry for this release
+        id: changelog
+        run: |
+          VERSION="${{ needs.build-and-push.outputs.version_tag }}"
+          BODY=$(awk "/^## \[${VERSION#v}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$BODY"     >> "$GITHUB_OUTPUT"
+          echo "EOF"       >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.build-and-push.outputs.calver_tag }}
-          name: 'Release ${{ needs.build-and-push.outputs.calver_tag }}'
+          tag_name: ${{ needs.build-and-push.outputs.version_tag }}
+          name: 'Release ${{ needs.build-and-push.outputs.version_tag }}'
           body: |
-            ## What's in this release
+            ${{ steps.changelog.outputs.body }}
+
+            ---
 
             | Field | Value |
             |---|---|
@@ -157,26 +318,24 @@ jobs:
             | **Docker image** | `ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.sha_tag }}` |
             | **Deployed to** | Fly.io |
 
-            ## Available image tags for rollback
+            ## Rollback image tags
 
             | Tag | Description |
             |---|---|
-            | `latest` | Always points to the newest master deploy |
             | `${{ needs.build-and-push.outputs.sha_tag }}` | Immutable — this exact commit |
-            | `${{ needs.build-and-push.outputs.calver_tag }}` | This named release |
+            | `${{ needs.build-and-push.outputs.version_tag }}` | This named release |
+            | `latest` | Always the newest master deploy |
 
-            ## How to rollback
-            Go to **Actions → Rollback Deploy** and enter one of the tags above.
+            > To rollback: **Actions → Rollback Deploy** → enter one of the tags above.
 
-  # ── 4. DB Migrate → Supabase ────────────────────────────────────────────────
-  # Runs BEFORE the API server is deployed so the schema is ready for new code.
-  # Seed never runs automatically here — use the manual "DB Seed" workflow.
+  # ── 5. DB Migrate → Supabase ────────────────────────────────────────────────
   db-migrate:
     name: Prisma Migrate Deploy → Supabase
     runs-on: ubuntu-latest
     needs: create-release
 
     env:
+      NODE_ENV: production
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_USERNAME: ${{ secrets.DB_USERNAME }}
@@ -185,6 +344,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -193,20 +354,18 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      # `migrate deploy` is production-safe: applies only pending migrations,
-      # never resets or generates new ones. Idempotent — safe on every deploy.
       - name: Run Prisma migrate deploy
         run: bunx prisma migrate deploy --config prisma.config.ts
 
       - name: Write migration summary
         run: |
           echo "## DB Migration Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Host** | \`${{ secrets.DB_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${{ needs.build-and-push.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
 
-  # ── 5. Deploy to Fly.io ─────────────────────────────────────────────────────
+  # ── 6. Deploy to Fly.io ─────────────────────────────────────────────────────
   deploy:
     name: Deploy to Fly.io
     runs-on: ubuntu-latest
@@ -215,14 +374,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # flyctl deploys the pre-built GHCR image directly — no rebuild on Fly's side.
-      # FLY_API_TOKEN: Fly.io dashboard → Account → Access Tokens → Create token
       - name: Deploy image to Fly.io
         uses: superfly/flyctl-actions@1.5
         with:
           args: >
             deploy
-            --image ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.calver_tag }}
+            --image ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version_tag }}
             --app ${{ env.FLY_APP }}
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -230,9 +387,8 @@ jobs:
       - name: Write deploy summary
         run: |
           echo "## Deployed to Fly.io" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Release tag | \`${{ needs.build-and-push.outputs.calver_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Image tag | \`${{ needs.build-and-push.outputs.sha_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| App URL | https://${{ env.FLY_APP }}.fly.dev |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${{ needs.build-and-push.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Image** | \`${{ needs.build-and-push.outputs.sha_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App URL** | https://${{ env.FLY_APP }}.fly.dev |" >> $GITHUB_STEP_SUMMARY
