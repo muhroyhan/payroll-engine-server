@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      NODE_ENV: production
       DB_HOST: ${{ secrets.DB_HOST }}
       DB_PORT: ${{ secrets.DB_PORT }}
       DB_USERNAME: ${{ secrets.DB_USERNAME }}
@@ -29,6 +30,10 @@ jobs:
       # Full install needed for tsx + tsconfig-paths (@src/* aliases in seed.ts)
       - name: Install dependencies
         run: bun install
+
+      # prisma/client/ is gitignored — must be generated before seed.ts imports it
+      - name: Generate Prisma client
+        run: bunx prisma generate --config prisma.config.ts
 
       - name: Seed database
         run: bun run seed
