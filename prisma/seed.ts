@@ -72,8 +72,17 @@ const userData: Prisma.UserCreateInput[] = [
 async function main() {
   console.log(`Start seeding ...`)
 
-  // Clear all data in one shot — CASCADE handles FK ordering
-  await prisma.$executeRaw`TRUNCATE TABLE "Tenant" CASCADE`
+  // Delete in leaf-to-root FK order — avoids raw SQL and pooler statement timeouts
+  await prisma.payslipItem.deleteMany({})
+  await prisma.payslip.deleteMany({})
+  await prisma.payslipRun.deleteMany({})
+  await prisma.payslipPeriod.deleteMany({})
+  await prisma.employeeSalaryComponent.deleteMany({})
+  await prisma.salaryComponent.deleteMany({})
+  await prisma.employee.deleteMany({})
+  await prisma.auditLogs.deleteMany({})
+  await prisma.user.deleteMany({})
+  await prisma.tenant.deleteMany({})
 
   for (const u of userData) {
     const user = await prisma.user.create({ data: u })
