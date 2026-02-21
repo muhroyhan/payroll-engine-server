@@ -54,13 +54,14 @@ export class AuthService {
    * Convert user to safe format (exclude sensitive fields)
    * Safe to send to client
    */
-  private toSafeUser(user: User): SafeUser {
+  private toSafeUser(user: User, tenantName?: string): SafeUser {
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
       tenantId: user.tenantId,
+      tenantName,
     }
   }
 
@@ -179,10 +180,16 @@ export class AuthService {
     // Clear failed attempts on successful login
     this.throttler.clearAttempts(user.email)
 
+    // Fetch tenant information for response
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { name: true },
+    })
+
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      user: this.toSafeUser(user),
+      user: this.toSafeUser(user, tenant?.name),
     }
   }
 
@@ -233,11 +240,17 @@ export class AuthService {
     const tokens = await this.generateTokens(user)
     await this.storeRefreshToken(user.id, tokens.refreshToken)
 
+    // Fetch tenant information for response
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { name: true },
+    })
+
     this.logger.log(`Token refreshed for user: ${user.id}`)
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
-      user: this.toSafeUser(user),
+      user: this.toSafeUser(user, tenant?.name),
     }
   }
 
@@ -275,6 +288,12 @@ export class AuthService {
       throw new UnauthorizedException(AUTH_CONFIG.ERROR.USER_INACTIVE)
     }
 
-    return this.toSafeUser(user)
+    // Fetch tenant information for response
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { name: true },
+    })
+
+    return this.toSafeUser(user, tenant?.name)
   }
 }

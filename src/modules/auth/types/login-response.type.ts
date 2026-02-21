@@ -6,6 +6,7 @@ export type SafeUser = {
   fullName: string
   role: Role
   tenantId: string
+  tenantName?: string
 }
 
 export type LoginResponse = {
