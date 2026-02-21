@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsNotEmpty, IsNumber, IsOptional, IsPositive, Min } from 'class-validator'
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  Min,
+} from 'class-validator'
 
 /**
  * Pagination request DTO
@@ -96,12 +102,7 @@ export class PaginatedResponse<T> {
   })
   hasPreviousPage: boolean
 
-  constructor(
-    data: T[],
-    total: number,
-    page: number,
-    limit: number,
-  ) {
+  constructor(data: T[], total: number, page: number, limit: number) {
     this.data = data
     this.total = total
     this.page = page

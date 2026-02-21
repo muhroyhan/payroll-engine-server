@@ -140,15 +140,16 @@ Track user and tenant context for all operations.
 **Usage in Controllers:**
 
 ```typescript
-import { buildAuditContext } from '@common/utils'
-import { AuthUser } from '@common/decorators'
+import type { AuthenticatedRequest } from '@src/common/types'
+import { buildAuditContext } from '@src/common/utils'
+import { AuthUser } from '@src/common/decorators'
 
 @Controller('employees')
 export class EmployeeController {
   @Post()
   async create(
     @Body() createDto: CreateEmployeeDto,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
     @AuthUser() user: any, // Custom decorator
   ): Promise<SingleResponse<Employee>> {
     const auditContext = buildAuditContext(request, 'CREATE')
@@ -161,7 +162,7 @@ export class EmployeeController {
   @Get(':id')
   async findOne(
     @Param('id') id: string,
-    @Req() request: Request,
+    @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<Employee>> {
     const auditContext = buildAuditContext(request, 'READ')
 

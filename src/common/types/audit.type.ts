@@ -19,3 +19,21 @@ export interface AuditContext {
   timestamp: Date
   metadata?: Record<string, any>
 }
+
+/**
+ * JWT payload added to request by Passport strategy
+ */
+export interface JwtPayload {
+  sub: string // User ID
+  tenantId: string // Tenant ID
+  email?: string
+  roles?: string[]
+}
+
+/**
+ * Fastify request with authenticated user context
+ * Extended with user property by JWT strategy
+ */
+export interface AuthenticatedRequest {
+  user: JwtPayload
+}

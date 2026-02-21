@@ -1,16 +1,15 @@
-import { Request } from 'express'
-import { AuditContext } from '../types/audit.type'
+import type { AuditContext, AuthenticatedRequest } from '../types/audit.type'
 
 /**
  * Get audit context from request
  * Extracts user and tenant information from JWT token
  *
- * @param request - Express request object
+ * @param request - Fastify request object with authenticated user
  * @returns Audit context with user and tenant info
- * @throws UnauthorizedException if user not found in request
+ * @throws Error if user not found in request
  */
-export function getAuditContext(request: Request): AuditContext {
-  const user = request.user as any
+export function getAuditContext(request: AuthenticatedRequest): AuditContext {
+  const user = request.user
 
   if (!user || !user.sub || !user.tenantId) {
     throw new Error('User context not found in request')
@@ -27,13 +26,13 @@ export function getAuditContext(request: Request): AuditContext {
 /**
  * Build audit context with custom action
  *
- * @param request - Express request object
+ * @param request - Fastify request object with authenticated user
  * @param action - Audit action type
  * @param metadata - Additional metadata
  * @returns Complete audit context
  */
 export function buildAuditContext(
-  request: Request,
+  request: AuthenticatedRequest,
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ',
   metadata?: Record<string, any>,
 ): AuditContext {
@@ -49,15 +48,15 @@ export function buildAuditContext(
  * Ensure request has valid user context
  * Use in controllers before calling services
  *
- * @param request - Express request object
+ * @param request - Fastify request object with authenticated user
  * @returns User and tenant IDs
  * @throws Error if user or tenant not found
  */
-export function ensureUserContext(request: Request): {
+export function ensureUserContext(request: AuthenticatedRequest): {
   userId: string
   tenantId: string
 } {
-  const user = request.user as any
+  const user = request.user
 
   if (!user || !user.sub) {
     throw new Error('User not authenticated')
