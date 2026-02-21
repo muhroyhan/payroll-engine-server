@@ -6,7 +6,12 @@ import { ValidationException } from '../exceptions/validation.exception'
 @Injectable()
 export class ValidationPipe implements PipeTransform {
   async transform(value: unknown, metadata: ArgumentMetadata) {
-    if (!metadata.type || metadata.type !== 'body' || !metadata.metatype) {
+    // Handle body and query parameters
+    if (
+      !metadata.type ||
+      !['body', 'query'].includes(metadata.type) ||
+      !metadata.metatype
+    ) {
       return value
     }
 

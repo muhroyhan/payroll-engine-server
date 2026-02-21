@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsNotEmpty,
@@ -17,6 +18,7 @@ export class PaginationDto {
     example: 1,
     minimum: 1,
   })
+  @Type(() => Number)
   @IsNotEmpty()
   @IsNumber()
   @Min(1)
@@ -28,6 +30,7 @@ export class PaginationDto {
     minimum: 1,
     maximum: 100,
   })
+  @Type(() => Number)
   @IsNotEmpty()
   @IsNumber()
   @IsPositive()

@@ -1,3 +1,5 @@
+import type { AuthUser } from './auth-user.type'
+
 /**
  * Audit metadata interface
  * Used to track who created/updated records and when
@@ -32,8 +34,9 @@ export interface JwtPayload {
 
 /**
  * Fastify request with authenticated user context
- * Extended with user property by JWT strategy
+ * Extended with user property by Passport JWT strategy
+ * Contains AuthUser object from JWT validation
  */
 export interface AuthenticatedRequest {
-  user: JwtPayload
+  user?: AuthUser
 }

@@ -11,12 +11,12 @@ import type { AuditContext, AuthenticatedRequest } from '../types/audit.type'
 export function getAuditContext(request: AuthenticatedRequest): AuditContext {
   const user = request.user
 
-  if (!user || !user.sub || !user.tenantId) {
+  if (!user || !user.userId || !user.tenantId) {
     throw new Error('User context not found in request')
   }
 
   return {
-    userId: user.sub, // JWT subject is user ID
+    userId: user.userId, // User ID from authenticated request
     tenantId: user.tenantId, // Tenant ID from JWT claims
     action: 'READ', // Default action, can be overridden
     timestamp: new Date(),
@@ -58,7 +58,7 @@ export function ensureUserContext(request: AuthenticatedRequest): {
 } {
   const user = request.user
 
-  if (!user || !user.sub) {
+  if (!user || !user.userId) {
     throw new Error('User not authenticated')
   }
 
@@ -67,7 +67,7 @@ export function ensureUserContext(request: AuthenticatedRequest): {
   }
 
   return {
-    userId: user.sub,
+    userId: user.userId,
     tenantId: user.tenantId,
   }
 }
