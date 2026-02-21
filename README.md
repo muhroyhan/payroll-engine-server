@@ -2,62 +2,141 @@
 
 A scalable, maintainable payroll management system built with NestJS, PostgreSQL, and Prisma.
 
-## Quick Start
+## Table of Contents
+
+- [Local Development Setup](#local-development-setup)
+- [Running the Application](#running-the-application)
+- [Available Commands](#available-commands)
+- [Project Structure](#project-structure)
+- [Architecture](#architecture)
+- [API Documentation](#api-documentation)
+- [Database Management](#database-management)
+- [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
+
+## Local Development Setup
 
 ### Prerequisites
 
-- Node.js 18+
-- Docker & Docker Compose
-- bun (package manager)
+Before starting, ensure you have the following installed on your machine:
 
-### Installation
+- **Node.js** (version 18 or higher) - [Download](https://nodejs.org/)
+- **bun** (package manager) - Install with: `curl -fsSL https://bun.sh/install | bash`
+- **Docker** - [Download](https://www.docker.com/products/docker-desktop)
+- **Docker Compose** - Usually comes with Docker Desktop
+- **Git** - [Download](https://git-scm.com/)
+
+### Quick Start (3 Steps!)
+
+1. **Clone and install**
+
+   ```bash
+   git clone <repository-url>
+   cd payroll-engine-server
+   bun install
+   ```
+
+2. **Setup environment**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Start everything**
+   ```bash
+   bun start
+   ```
+
+That's it! This command starts the PostgreSQL database and API server together. The API will be available at `http://localhost:3000` with hot-reload enabled.
+
+### Environment Variables
+
+Edit `.env` to customize (optional):
+
+```env
+DB_HOST=localhost              # PostgreSQL host
+DB_PORT=5432                   # PostgreSQL port
+DB_USERNAME=postgres           # PostgreSQL user
+DB_PASSWORD=your_password_here # PostgreSQL password
+JWT_SECRET=your_jwt_secret_here # Secret for JWT tokens
+NODE_ENV=development            # Environment type
+PORT=3000                       # API server port
+```
+
+## Running the Application
+
+### Development Mode (Default)
 
 ```bash
-# Install dependencies
-bun install
+bun start
+```
 
-# Setup environment variables
-cp .env.example .env
+- Starts both database and API server via Docker Compose
+- API runs on `http://localhost:3000` with hot-reload enabled
+- Database automatically seeded with initial data
 
-# Start database
-docker compose up -d
+### Development with Code Reloading
 
-# Run migrations
-bun prisma migrate dev
+For development without Docker (after database is running):
 
-# Seed database (optional)
-bun seed
-
-# Start development server
+```bash
 bun start:dev
 ```
 
-### Available Scripts
+- Starts only the NestJS server with file watching
+- Requires database to be running separately
+
+### Debug Mode
 
 ```bash
-# Development
-bun start:dev           # Start with hot reload
-bun start:debug         # Start with debugger
-
-# Production
-bun build              # Build for production
-bun start:prod         # Run production build
-
-# Database
-bun prisma migrate dev # Create migration
-bun prisma studio     # Open Prisma Studio
-bun seed              # Seed database
-
-# Testing
-bun test              # Run unit tests
-bun test:watch        # Run tests in watch mode
-bun test:cov          # Generate coverage report
-bun test:e2e          # Run E2E tests
-
-# Code Quality
-bun lint              # Run ESLint
-bun format            # Format with Prettier
+bun start:debug
 ```
+
+- Starts the server with debugger support
+- Useful for troubleshooting issues
+
+### Production Build
+
+```bash
+# Build the application
+bun build
+
+# Start the production server
+bun start:prod
+```
+
+## Available Commands
+
+### Main Development Commands
+
+| Command           | Description                                                |
+| ----------------- | ---------------------------------------------------------- |
+| `bun start`       | **Start API server + database** (recommended) ⭐           |
+| `bun start:dev`   | Start only API server with hot-reload (db must be running) |
+| `bun start:debug` | Start with debugger enabled                                |
+| `bun build`       | Compile TypeScript for production                          |
+| `bun start:prod`  | Run production build                                       |
+
+### Database & Prisma
+
+| Command                     | Description                                  |
+| --------------------------- | -------------------------------------------- |
+| `bun run seed`              | Seed database with initial data              |
+| `bun prisma migrate dev`    | Create and apply database migration          |
+| `bun prisma migrate status` | View migration status                        |
+| `bun prisma studio`         | Open Prisma Studio (visual database browser) |
+| `bun prisma generate`       | Generate Prisma Client                       |
+
+### Testing & Quality
+
+| Command          | Description               |
+| ---------------- | ------------------------- |
+| `bun test`       | Run unit tests            |
+| `bun test:watch` | Run tests in watch mode   |
+| `bun test:cov`   | Generate coverage report  |
+| `bun test:e2e`   | Run end-to-end tests      |
+| `bun lint`       | Run ESLint and fix issues |
+| `bun format`     | Format code with Prettier |
 
 ## Project Structure
 
@@ -66,110 +145,126 @@ The project follows a layered architecture with clear separation of concerns:
 ```
 src/
 ├── common/          # Shared utilities and cross-cutting concerns
-├── config/          # Configuration management
-├── database/        # Database abstractions
-├── domain/          # Core business logic (Domain-Driven Design)
-├── infra/           # Infrastructure services
+│   ├── decorators/     # Custom decorators (auth, roles, etc.)
+│   ├── exceptions/     # Custom exception classes
+│   ├── filters/        # Global exception filter
+│   ├── guards/         # Authentication & authorization guards
+│   ├── pipes/          # Validation pipes
+│   └── types/          # Shared TypeScript types
+├── database/        # Database configuration
+│   ├── prisma.service.ts   # Prisma service wrapper
+│   ├── prisma.module.ts    # Prisma module
+│   └── database-url.ts     # Database URL configuration
 ├── modules/         # Feature modules (Application layer)
-└── app.module.ts    # Root module
+│   ├── auth/           # Authentication module
+│   │   ├── controllers/  # Auth endpoints
+│   │   ├── services/     # Auth business logic
+│   │   ├── guards/       # JWT guards, throttle guards
+│   │   ├── strategies/   # Passport strategies
+│   │   └── dto/          # Data Transfer Objects
+│   └── ... # Other modules
+├── app.module.ts    # Root NestJS module
+└── main.ts          # Application entry point
 ```
 
-For detailed information, see [docs/architecture.md](./docs/architecture.md)
+**Database Layer (Prisma)**
+
+```
+prisma/
+├── schema.prisma      # Database schema definition
+├── seed.ts            # Seeding script for initial data
+└── migrations/        # Migration history
+    └── 20260219045435_init/
+```
+
+For detailed architecture information, see [docs/architecture.md](./docs/architecture.md)
 
 ## Architecture
 
 ### Layers
 
 1. **Common Layer** - Shared utilities, exceptions, guards, decorators
-2. **Config Layer** - Environment configuration management
-3. **Database Layer** - Prisma ORM and database abstractions
-4. **Domain Layer** - Core business logic and entities (DDD)
-5. **Infrastructure Layer** - Logging, queues, file storage
-6. **Application Layer** - Feature modules handling HTTP requests
+2. **Database Layer** - Prisma ORM and database abstractions
+3. **Application Layer** - Feature modules handling HTTP requests
 
 ### Dependency Flow
 
-Each layer can only import from layers below it, preventing circular dependencies:
+Layers can only import from layers below them, preventing circular dependencies:
 
 ```
 Application (Modules)
     ↓
-Domain (Business Logic)
+Database (Prisma)
     ↓
-Infrastructure (Services)
-    ↓
-Common (Utilities)
+Common (Utilities & Exceptions)
 ```
 
 ### Module Structure
 
-Each feature module follows a standard structure for consistency:
+Each feature module follows a consistent structure:
 
 ```
 modules/employee/
-├── controllers/     # HTTP endpoints
-├── services/        # Business logic
-├── dto/             # Data transfer objects
-├── types/           # TypeScript types
-└── employee.module.ts
+├── controllers/       # HTTP endpoints (routes)
+├── services/          # Business logic and validation
+├── dto/               # Data Transfer Objects (request/response)
+├── types/             # TypeScript interfaces/types
+├── entities/          # Domain entities (if DDD pattern used)
+└── employee.module.ts # Module declaration
 ```
 
-For detailed module guidelines, see [docs/module-structure.md](./docs/module-structure.md)
+## Database Management
 
-## Features
+### Schema Overview
 
-### ✅ Implemented
+The project uses PostgreSQL with Prisma ORM. Key entities:
 
-- User authentication with JWT
-- Role-based access control (RBAC)
-- Employee management
-- Salary component configuration
-- Payroll calculation
-- Payslip generation
-- Audit logging
-- Database migrations with Prisma
-- Comprehensive error handling
-- Input validation with class-validator
+| Entity                      | Purpose                                    |
+| --------------------------- | ------------------------------------------ |
+| **User**                    | System users with roles and authentication |
+| **Tenant**                  | Multi-tenant organization support          |
+| **Employee**                | Employee information and records           |
+| **SalaryComponent**         | Reusable salary structure components       |
+| **EmployeeSalaryComponent** | Employee-specific salary components        |
+| **PayslipRun**              | Batch payroll processing runs              |
+| **Payslip**                 | Generated payslips for employees           |
+| **PayslipItem**             | Individual line items in payslips          |
+| **AuditLogs**               | Audit trail of system changes              |
 
-### 🚀 Future Features
+### Viewing Database
 
-- Payroll rule engine
-- Complex tax calculations
-- Deduction management
-- Leave management
-- API versioning
-- GraphQL support
-- Webhooks integration
-
-## Database
-
-### Schema
-
-The project uses Prisma with PostgreSQL. Key entities:
-
-- **User** - System users with roles
-- **Tenant** - Multi-tenant support
-- **Employee** - Employee information
-- **SalaryComponent** - Salary structure components
-- **Payroll** - Payroll calculations
-- **Payslip** - Generated payslips
-- **AuditLogs** - Transaction audit trail
-
-### Migrations
+Open Prisma Studio (visual database browser):
 
 ```bash
-# Create new migration after schema changes
-bun prisma migrate dev --name describe_your_change
-
-# View database in UI
 bun prisma studio
+```
+
+This opens http://localhost:5173 with a UI to browse and edit data.
+
+### Creating Migrations
+
+After modifying `prisma/schema.prisma`:
+
+```bash
+# Create a new migration
+bun prisma migrate dev --name add_new_field
+
+# Check migration status
+bun prisma migrate status
+
+# Reset database (development only!)
+bun prisma migrate reset
 ```
 
 ## API Documentation
 
-### Authentication
+The API uses JWT authentication and is documented with Swagger/OpenAPI.
 
-#### Login
+**Access API Documentation**: `http://localhost:3000/docs` (when running locally)
+
+### Authentication Flow
+
+#### 1. Login
 
 ```http
 POST /auth/login
@@ -181,233 +276,542 @@ Content-Type: application/json
 }
 ```
 
-Response:
+**Response (200 OK):**
 
 ```json
 {
-  "accessToken": "jwt_token",
-  "refreshToken": "jwt_token",
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
-    "id": "user_id",
+    "id": "uuid",
     "email": "user@example.com",
-    "role": "admin"
+    "fullName": "John Doe",
+    "role": "tenant_admin"
   }
 }
 ```
 
-#### Refresh Token
+#### 2. Use Access Token in Requests
+
+```http
+GET /employees
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+#### 3. Refresh Token When Expired
 
 ```http
 POST /auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "jwt_token"
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-### Employees
+### Common Endpoints
 
-All employee endpoints require authentication.
-
-```http
-GET    /employees           # List all employees
-POST   /employees           # Create employee
-GET    /employees/:id       # Get employee details
-PATCH  /employees/:id       # Update employee
-DELETE /employees/:id       # Delete employee
-```
-
-### Payroll
-
-```http
-POST   /payroll            # Calculate payroll
-GET    /payroll/:id        # Get payroll details
-GET    /payroll/tenant/:id # Get tenant's payrolls
-```
-
-For full API documentation, check Swagger at `http://localhost:3000/api`
+| Method   | Endpoint         | Description          |
+| -------- | ---------------- | -------------------- |
+| `POST`   | `/auth/login`    | User login           |
+| `POST`   | `/auth/refresh`  | Refresh access token |
+| `GET`    | `/employees`     | List employees       |
+| `POST`   | `/employees`     | Create employee      |
+| `GET`    | `/employees/:id` | Get employee details |
+| `PATCH`  | `/employees/:id` | Update employee      |
+| `DELETE` | `/employees/:id` | Delete employee      |
 
 ## Testing
 
 ### Unit Tests
 
 ```bash
-# Run all unit tests
+# Run all tests
 bun test
+
+# Run in watch mode
+bun test:watch
+
+# Generate coverage report
+bun test:cov
 
 # Run specific test file
 bun test src/modules/auth/auth.service.spec.ts
-
-# Watch mode
-bun test:watch
-
-# Coverage
-bun test:cov
 ```
 
 ### E2E Tests
 
 ```bash
-# Run E2E tests
+# Run end-to-end tests
 bun test:e2e
 
-# Only specific test
+# Run specific E2E test
 bun test:e2e -- auth.e2e-spec
 ```
 
-## Error Handling
+## Deployment
 
-The application uses a centralized error handling system with custom exceptions:
+### Deploying to Fly.io
 
-```typescript
-// Validation errors
-throw new ValidationException('Email is invalid', { field: 'email' })
+Fly.io is configured as the production deployment platform. The configuration is in `fly.toml`.
 
-// Resource not found
-throw new NotFoundException('Employee', employeeId)
+#### Prerequisites
 
-// Business logic violations
-throw new BusinessLogicException(
-  'INVALID_PAYROLL',
-  'Cannot calculate payroll without data',
-)
+1. **Fly CLI** - Install from [fly.io/docs](https://fly.io/docs/getting-started/installing-flyctl/)
+2. **Fly Account** - Create at [fly.io](https://fly.io)
+3. **PostgreSQL Database** - Set up on Fly.io or use external provider
 
-// Authentication/Authorization
-throw new UnauthorizedException('Invalid credentials')
-throw new ForbiddenException('Access denied')
+#### Deployment Steps
+
+1. **Authenticate with Fly**
+
+   ```bash
+   flyctl auth login
+   ```
+
+2. **Set Environment Variables**
+
+   ```bash
+   # Set production secrets
+   flyctl secrets set \
+     JWT_SECRET="your-strong-jwt-secret" \
+     DB_HOST="your-db-host" \
+     DB_PORT="5432" \
+     DB_USERNAME="postgres" \
+     DB_PASSWORD="your-db-password" \
+     NODE_ENV="production"
+   ```
+
+3. **Create PostgreSQL Database (if needed)**
+
+   ```bash
+   # Create new Postgres database on Fly.io
+   flyctl postgres create
+
+   # Or use external database - just set DB_* environment variables
+   ```
+
+4. **Update Database URL in fly.toml**
+
+   If using external database, ensure the connection string is correct:
+
+   ```toml
+   [env]
+     DATABASE_URL = "postgresql://user:password@host:port/database"
+   ```
+
+5. **Deploy the Application**
+
+   ```bash
+   # Deploy to production
+   flyctl deploy
+
+   # Monitor deployment
+   flyctl status
+
+   # View logs
+   flyctl logs
+   ```
+
+6. **Run Database Migrations on Production**
+
+   ```bash
+   # SSH into the app machine
+   flyctl ssh console
+
+   # Run migrations
+   bun prisma migrate deploy
+
+   # Seed data (optional)
+   bun seed
+
+   # Exit
+   exit
+   ```
+
+#### Post-Deployment Verification
+
+1. Check app status:
+
+   ```bash
+   flyctl status
+   ```
+
+2. View recent logs:
+
+   ```bash
+   flyctl logs -n 50
+   ```
+
+3. Test the API:
+
+   ```bash
+   curl https://<app-name>.fly.dev/health
+   ```
+
+4. Access Swagger documentation:
+   ```
+   https://<app-name>.fly.dev/docs
+   ```
+
+#### Deployment Configuration Explained
+
+The `fly.toml` file contains:
+
+```toml
+app = 'payroll-engine-server'              # App name on Fly.io
+primary_region = 'sin'                     # Singapore region (adjust as needed)
+
+[env]
+  NODE_ENV = 'production'                  # Production environment
+  PORT = '3000'                            # Internal port
+
+[http_service]
+  internal_port = 3000                     # Port inside container
+  force_https = true                       # HTTPS enforced
+  auto_stop_machines = 'stop'              # Stop idle machines
+  auto_start_machines = true               # Restart on demand
+  min_machines_running = 0                 # Scale to 0 when idle
+
+[[vm]]
+  size = 'shared-cpu-1x'                   # Machine size (adjust for production)
 ```
 
-All exceptions are caught by the global exception filter and return consistent responses.
+**Regions Available**: `syd` (Sydney), `sin` (Singapore), `sjc` (San Jose), `ams` (Amsterdam), etc.
 
-## Code Quality
+**VM Sizes**: `shared-cpu-1x` (small), `performance-1x` (medium), `performance-2x` (large)
 
-### ESLint
+### Alternative Deployment Options
+
+#### Docker Deployment
+
+The project includes Docker configuration for deployment:
 
 ```bash
-bun lint              # Check for errors
-bun lint --fix        # Auto-fix issues
+# Build Docker image
+docker build -t payroll-engine:latest .
+
+# Run container
+docker run -p 3000:3000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e JWT_SECRET="..." \
+  payroll-engine:latest
 ```
 
-### Prettier
+#### Traditional Server (VPS/Cloud VM)
+
+1. Install Node.js 18+ and PostgreSQL
+2. Clone repository
+3. Configure `.env` with production values
+4. Run: `bun install && bun build && bun start:prod`
+5. Use PM2 for process management: `pm2 start dist/main.js`
+
+## Troubleshooting
+
+### Local Development Issues
+
+#### Database Connection Error
+
+```
+Error: connect ECONNREFUSED 127.0.0.1:5432
+```
+
+**Solution:**
 
 ```bash
-bun format            # Format all files
+# Check if database is running
+docker compose ps
+
+# Start database
+docker compose up -d
+
+# Verify connection
+docker compose exec db psql -U postgres -c "SELECT 1"
 ```
 
-### Pre-commit Hooks
+#### Port Already in Use
 
-Consider setting up Husky for automatic linting:
+```
+Error: Port 3000 is already in use
+```
+
+**Solution:**
 
 ```bash
-npm install husky lint-staged --save-dev
-husky install
+# Option 1: Change port in .env
+echo "PORT=3001" >> .env
+
+# Option 2: Kill process using port 3000
+Get-NetstatTCP | Where-Object {$_.LocalPort -eq 3000} | Stop-Process
 ```
 
-## Environment Variables
+#### Module Not Found / Path Errors
+
+```
+Error: Cannot find module '@src/...'
+```
+
+**Solution:**
+
+```bash
+# Verify tsconfig.json has correct path aliases
+# Check import statements use correct syntax
+
+# Regenerate Prisma client
+bun prisma generate
+```
+
+#### Hot Reload Not Working
+
+```bash
+# Restart development server
+# Ensure volumes are correctly mounted in docker-compose.yaml
+docker compose restart api
+```
+
+### Migration Issues
+
+#### Migration History Out of Sync
+
+```bash
+# Check migration status
+bun prisma migrate status
+
+# Resolve conflicts (reset in development only!)
+bun prisma migrate reset
+```
+
+#### Database Drift Detected
+
+```bash
+# Align schema with database
+bun prisma db pull
+
+# Review and apply changes
+bun prisma migrate dev
+```
+
+### Production Issues
+
+#### Application Won't Start
+
+```bash
+# Check logs
+flyctl logs -n 100
+
+# Check environment variables
+flyctl secrets list
+
+# Verify database connection
+flyctl ssh console  # Then test connection
+```
+
+#### Database Migrations Failed
+
+```bash
+# SSH into app
+flyctl ssh console
+
+# Check migration status
+bun prisma migrate status
+
+# Run migrations
+bun prisma migrate deploy
+```
+
+## Code Quality & Best Practices
+
+### Linting
+
+```bash
+# Check for errors
+bun lint
+
+# Auto-fix issues
+bun lint --fix
+```
+
+### Code Formatting
+
+```bash
+# Format all code with Prettier
+bun format
+
+# Check formatting
+bun format --check
+```
+
+### Pre-commit Hooks (Recommended)
+
+Install Husky for automatic quality checks:
+
+```bash
+bun add -D husky lint-staged
+bunx husky install
+```
+
+### Code Review Checklist
+
+- ✅ Code follows NestJS module structure
+- ✅ No circular dependencies between modules
+- ✅ Custom exceptions used appropriately
+- ✅ DTOs used for all API inputs
+- ✅ Tests written for new features
+- ✅ ESLint passes with no warnings
+- ✅ No hardcoded secrets or credentials
+- ✅ Environment variables documented
+- ✅ Documentation updated
+
+### Git Workflow
+
+```bash
+# 1. Create feature branch
+git checkout -b feature/my-feature
+
+# 2. Make changes and test
+bun test
+bun lint
+
+# 3. Commit with clear message
+git commit -m "feat: add new feature"
+
+# 4. Push and create Pull Request
+git push origin feature/my-feature
+```
+
+## Environment Variables Reference
+
+### Local Development
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/payroll_db
-
-# JWT
-JWT_SECRET=your_secret_key_here
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=your_password_here
 
 # Application
 NODE_ENV=development
 PORT=3000
 
-# Redis (optional)
-REDIS_URL=redis://localhost:6379
+# Security
+JWT_SECRET=your_jwt_secret_here
+```
 
-# Logging
-LOG_LEVEL=debug
+### Production (Fly.io)
+
+Set these using `flyctl secrets set`:
+
+```
+JWT_SECRET=strong-random-string
+DB_HOST=your-db-host
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=secure-password
+NODE_ENV=production
 ```
 
 ## Performance Optimization
 
-### Implemented
+### Current Optimizations
 
 - Connection pooling with Prisma
-- Query optimization
-- Exception handling
-- Validation pipe
+- Input validation at request level
+- Global exception handling
+- JWT token-based authentication
 
-### Recommended
+### Recommended for Production
 
 - Redis caching for frequently accessed data
-- Job queue for async processing
-- Database indexes on frequently queried columns
-- API rate limiting
-- Compression middleware
+- Database query optimization and indexing
+- API rate limiting (throttle guard implemented)
+- Response compression
+- Load balancing (Fly.io handles this)
+- Database backups and monitoring
+
+## Monitoring & Logs
+
+### Local Development
+
+```bash
+# View all logs
+docker compose logs -f api
+
+# View only database logs
+docker compose logs -f db
+```
+
+### Production (Fly.io)
+
+```bash
+# Real-time logs
+flyctl logs
+
+# Last 100 log messages
+flyctl logs -n 100
+
+# Stream specific region
+flyctl logs -f
+```
 
 ## Contributing
 
-### Code Review Checklist
+### Code Guidelines
 
-- [ ] Follows module structure guidelines
-- [ ] No circular dependencies
-- [ ] Proper exception types used
-- [ ] DTOs used for all inputs
-- [ ] Tests written for new features
-- [ ] Documentation updated
-- [ ] ESLint passes
-- [ ] No hardcoded secrets
+1. Follow NestJS architecture best practices
+2. Keep modules focused and single-responsibility
+3. Use TypeScript strict mode
+4. Write tests for new features
+5. Document complex business logic
+6. Use dependency injection
 
-### Git Workflow
-
-1. Create feature branch: `git checkout -b feature/feature-name`
-2. Make changes following architecture guidelines
-3. Write/update tests
-4. Run linting: `bun lint`
-5. Commit with clear messages
-6. Push and create pull request
-
-## Troubleshooting
-
-### Database Connection Error
+### Creating New Features
 
 ```bash
-# Check database is running
-docker compose ps
+# 1. Create feature branch
+git checkout -b feature/my-feature
 
-# Restart database
-docker compose restart postgres
+# 2. Generate NestJS module
+nest g module modules/my-feature
 
-# Reset migrations
-bun prisma migrate reset
+# 3. Generate controller
+nest g controller modules/my-feature/controllers
+
+# 4. Generate service
+nest g service modules/my-feature/services
+
+# 5. Write tests and code
+# 6. Test locally
+bun test
+
+# 7. Format and lint
+bun format && bun lint --fix
+
+# 8. Push and create PR
 ```
 
-### Port Already in Use
+## Essential Resources
 
-```bash
-# Change port in .env
-PORT=3001
-```
+- **NestJS** - https://docs.nestjs.com
+- **Prisma** - https://www.prisma.io/docs
+- **PostgreSQL** - https://www.postgresql.org/docs
+- **Fly.io** - https://fly.io/docs
+- **TypeScript** - https://www.typescriptlang.org/docs
+- **JWT** - https://jwt.io/introduction
+- **bun** - https://bun.sh/docs
 
-### Module Not Found
+## Support & Issues
 
-```bash
-# Verify tsconfig paths
-# Check import statement paths use @src/ prefix
-```
-
-## Resources
-
-- [NestJS Documentation](https://docs.nestjs.com)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [TypeScript Best Practices](https://www.typescriptlang.org/docs)
-- [Architecture Guide](./docs/architecture.md)
-- [Module Structure Guide](./docs/module-structure.md)
+- 📧 Contact development team for support
+- 🐛 Report bugs via GitHub Issues
+- 📖 Check documentation in `/docs` folder
+- 💬 Discuss features in Pull Requests
 
 ## License
 
 UNLICENSED - Internal project only
 
-## Support
-
-For issues or questions, contact the development team or create an issue in the repository.
-
 ---
 
-**Last Updated:** February 18, 2026
+**Last Updated:** February 21, 2026  
+**Maintained by:** Development Team
