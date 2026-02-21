@@ -80,7 +80,39 @@ export abstract class BaseService<T, CreateDto = any, UpdateDto = any> {
    * @returns Offset for database query
    */
   protected calculateOffset(page: number, limit: number): number {
-    return (page - 1) * limit
+    // Ensure values are numbers (query params come as strings)
+    const pageNum = typeof page === 'string' ? parseInt(page, 10) : page
+    const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit
+    return (pageNum - 1) * limitNum
+  }
+
+  /**
+   * Normalize pagination values to ensure they are numbers
+   * Query parameters are received as strings and need conversion
+   *
+   * @param pagination - Pagination DTO with potentially string values
+   * @returns Normalized pagination with numeric values
+   */
+  protected normalizePaginationDto(pagination: PaginationDto): {
+    page: number
+    limit: number
+    search?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  } {
+    return {
+      page:
+        typeof pagination.page === 'string'
+          ? parseInt(pagination.page, 10)
+          : pagination.page,
+      limit:
+        typeof pagination.limit === 'string'
+          ? parseInt(pagination.limit, 10)
+          : pagination.limit,
+      search: pagination.search,
+      sortBy: pagination.sortBy,
+      sortOrder: pagination.sortOrder,
+    }
   }
 
   /**

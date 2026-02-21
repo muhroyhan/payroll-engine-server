@@ -15,7 +15,8 @@ export interface AuditMetadata {
  * Audit context passed through service operations
  */
 export interface AuditContext {
-  userId: string // Current user performing the action
+  userId: string // Current user ID performing the action
+  userFullName: string // Current user's full name
   tenantId: string // Tenant context
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ'
   timestamp: Date
