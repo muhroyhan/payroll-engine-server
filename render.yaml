@@ -1,0 +1,36 @@
+version: 3
+
+services:
+  # Main API Service
+  - type: web
+    name: payroll-engine-server
+    runtime: node
+    plan: free
+    buildCommand: bun install && bun run build
+    startCommand: bun run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: '3000'
+      - key: JWT_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: '5432'
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+    maxShutdownDelaySeconds: 30
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin

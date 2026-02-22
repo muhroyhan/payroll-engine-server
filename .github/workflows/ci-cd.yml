@@ -1,4 +1,4 @@
-name: CI/CD — Test, Version, Build & Deploy to Fly.io
+name: CI/CD — Test, Version, Build & Deploy
 
 # ─── Trigger ────────────────────────────────────────────────────────────────
 # Runs on every push to the master branch.
@@ -11,7 +11,6 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }} # e.g. muhroyhan/payroll-engine-server
-  FLY_APP: payroll-engine-server        # must match app.name in fly.toml
 
 # ─── Workflow-level permissions ──────────────────────────────────────────────
 # packages: write  — push images to GHCR
@@ -22,11 +21,14 @@ permissions:
 
 # ─── Pipeline ────────────────────────────────────────────────────────────────
 #
-#   test → version-bump → build-and-push → create-release → db-migrate → deploy
+#   test → version-bump → build-and-push → create-release → db-migrate
 #
 # version-bump commits the new SemVer to package.json + CHANGELOG.md before
 # anything is built, so the image always reflects the correct version number.
-# DB migrations run BEFORE the new API server is deployed.
+# DB migrations run BEFORE new deployments. Render auto-deploys from GitHub.
+#
+# For Render: Push to the deployment branch to trigger auto-deployment.
+# Docker images are pushed to GHCR for reference and potential manual deployments.
 
 jobs:
   # ── 1. Lint & Test ──────────────────────────────────────────────────────────
@@ -316,7 +318,7 @@ jobs:
             | **Commit** | `${{ github.sha }}` |
             | **Branch** | `master` |
             | **Docker image** | `ghcr.io/${{ github.repository }}:${{ needs.build-and-push.outputs.sha_tag }}` |
-            | **Deployed to** | Fly.io |
+            | **Deployed to** | Render (auto-deploy on push) |
 
             ## Rollback image tags
 
@@ -328,9 +330,9 @@ jobs:
 
             > To rollback: **Actions → Rollback Deploy** → enter one of the tags above.
 
-  # ── 5. DB Migrate → Supabase ────────────────────────────────────────────────
+  # ── 5. DB Migrate ──────────────────────────────────────────────────────────────
   db-migrate:
-    name: Prisma Migrate Deploy → Supabase
+    name: Prisma Migrate Deploy
     runs-on: ubuntu-latest
     needs: create-release
 
@@ -364,31 +366,3 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Host** | \`${{ secrets.DB_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Version** | \`${{ needs.build-and-push.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-
-  # ── 6. Deploy to Fly.io ─────────────────────────────────────────────────────
-  deploy:
-    name: Deploy to Fly.io
-    runs-on: ubuntu-latest
-    needs: [build-and-push, db-migrate]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy image to Fly.io
-        uses: superfly/flyctl-actions@1.5
-        with:
-          args: >
-            deploy
-            --image ghcr.io/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version_tag }}
-            --app ${{ env.FLY_APP }}
-        env:
-          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-
-      - name: Write deploy summary
-        run: |
-          echo "## Deployed to Fly.io" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Version** | \`${{ needs.build-and-push.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Image** | \`${{ needs.build-and-push.outputs.sha_tag }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **App URL** | https://${{ env.FLY_APP }}.fly.dev |" >> $GITHUB_STEP_SUMMARY
