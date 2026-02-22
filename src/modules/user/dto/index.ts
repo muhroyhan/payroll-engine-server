@@ -1,0 +1,177 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import {
+  IsBoolean,
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsStrongPassword,
+  Length,
+} from 'class-validator'
+import type { Role } from '@src/common/types'
+
+const ROLES: Role[] = ['tenant_admin', 'payroll_officer', 'viewer']
+
+export class CreateUserDto {
+  @ApiProperty({
+    description: 'User email address',
+    example: 'staff@acme.com',
+  })
+  @IsEmail()
+  email!: string
+
+  @ApiProperty({
+    description: 'User full name',
+    example: 'John Doe',
+    minLength: 3,
+    maxLength: 255,
+  })
+  @IsString()
+  @Length(3, 255)
+  fullName!: string
+
+  @ApiProperty({
+    description: 'User password',
+    example: 'Test12345!',
+  })
+  @IsStrongPassword({
+    minLength: 8,
+    minLowercase: 1,
+    minUppercase: 1,
+    minNumbers: 1,
+    minSymbols: 1,
+  })
+  password!: string
+
+  @ApiPropertyOptional({
+    description: 'User role',
+    enum: ROLES,
+    example: 'viewer',
+  })
+  @IsOptional()
+  @IsIn(ROLES)
+  role?: Role
+
+  @ApiPropertyOptional({
+    description: 'Whether user account is active',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean
+}
+
+export class UpdateUserDto {
+  @ApiPropertyOptional({
+    description: 'User email address',
+    example: 'updated.staff@acme.com',
+  })
+  @IsOptional()
+  @IsEmail()
+  email?: string
+
+  @ApiPropertyOptional({
+    description: 'User full name',
+    example: 'John Doe Updated',
+    minLength: 3,
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsString()
+  @Length(3, 255)
+  fullName?: string
+
+  @ApiPropertyOptional({
+    description: 'User password',
+    example: 'NewPass12345!',
+  })
+  @IsOptional()
+  @IsStrongPassword({
+    minLength: 8,
+    minLowercase: 1,
+    minUppercase: 1,
+    minNumbers: 1,
+    minSymbols: 1,
+  })
+  password?: string
+
+  @ApiPropertyOptional({
+    description: 'User role',
+    enum: ROLES,
+    example: 'payroll_officer',
+  })
+  @IsOptional()
+  @IsIn(ROLES)
+  role?: Role
+
+  @ApiPropertyOptional({
+    description: 'Whether user account is active',
+    example: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean
+}
+
+export class UserDto {
+  @ApiProperty({
+    description: 'User ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  id!: string
+
+  @ApiProperty({
+    description: 'Tenant ID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  tenantId!: string
+
+  @ApiProperty({
+    description: 'User email address',
+    example: 'staff@acme.com',
+  })
+  email!: string
+
+  @ApiProperty({
+    description: 'User full name',
+    example: 'John Doe',
+  })
+  fullName!: string
+
+  @ApiProperty({
+    description: 'User role',
+    enum: ROLES,
+    example: 'viewer',
+  })
+  role!: Role
+
+  @ApiProperty({
+    description: 'Whether user account is active',
+    example: true,
+  })
+  isActive!: boolean
+
+  @ApiProperty({
+    description: 'Creator user full name',
+    example: 'Admin User',
+  })
+  createdBy!: string
+
+  @ApiProperty({
+    description: 'Creation timestamp',
+    example: '2026-02-22T10:30:00Z',
+  })
+  createdAt!: Date
+
+  @ApiProperty({
+    description: 'Last updater user full name',
+    example: 'Admin User',
+  })
+  updatedBy!: string
+
+  @ApiProperty({
+    description: 'Last update timestamp',
+    example: '2026-02-22T10:30:00Z',
+  })
+  updatedAt!: Date
+}

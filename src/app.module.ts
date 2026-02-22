@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
 import { AuthModule } from './modules/auth/auth.module'
 import { AUTH_CONFIG } from './modules/auth/auth.config'
 import { TenantModule } from './modules/tenant'
+import { UserModule } from './modules/user'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
@@ -35,6 +36,7 @@ import { ValidationPipe } from './common/pipes/validation.pipe'
     ]),
     AuthModule,
     TenantModule,
+    UserModule,
   ],
   providers: [
     {
