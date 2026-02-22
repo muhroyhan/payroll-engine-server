@@ -14,15 +14,15 @@ services:
       - key: PORT
         value: '3000'
       - key: JWT_SECRET
-        sync: false
+        sync: true
       - key: DB_HOST
-        sync: false
+        sync: true
       - key: DB_PORT
-        value: '5432'
+        value: true
       - key: DB_USERNAME
-        sync: false
+        sync: true
       - key: DB_PASSWORD
-        sync: false
+        sync: true
     maxShutdownDelaySeconds: 30
     headers:
       - path: /*
