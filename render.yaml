@@ -6,8 +6,8 @@ services:
     name: payroll-engine-server
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
-    startCommand: npm run start:prod
+    buildCommand: bun i && bun prisma generate && bun run build
+    startCommand: bun run start:prod
 
     # Environment variables
     envVars:
