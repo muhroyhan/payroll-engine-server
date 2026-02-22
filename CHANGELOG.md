@@ -15,6 +15,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ---
 
+## [0.1.1] - 2026-02-22
+
+### Other Changes
+
+- Merge pull request #13 from muhroyhan/develop
+- missing DB_NAME
+
+
 ## [0.1.0] - 2026-02-22
 
 ### Features
