@@ -393,6 +393,7 @@ Render is configured as the production deployment platform with free tier suppor
    DB_PORT = 5432
    DB_USERNAME = postgres
    DB_PASSWORD = your-supabase-db-password
+   DB_NAME = your-database-name
    ```
 
 4. **Create PostgreSQL Database (Using Supabase - Recommended)**
@@ -414,7 +415,21 @@ Render is configured as the production deployment platform with free tier suppor
    - Region: Same as API service
    - Copy the generated connection details and set them as `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` environment variables above
 
-5. **Deploy the Application**
+5. **Setup GitHub Secrets (for CI/CD Database Migrations)**
+
+   The GitHub Actions workflow needs database credentials to run migrations automatically. Set these at `github.com/yourrepo/settings/secrets/actions`:
+
+   ```
+   DB_HOST         your-supabase-or-render-db-host
+   DB_PORT         5432
+   DB_USERNAME     postgres
+   DB_PASSWORD     your-database-password
+   DB_NAME         payroll_engine
+   ```
+
+   These secrets will be used by the CI/CD pipeline to run `prisma migrate deploy` automatically during deployment.
+
+6. **Deploy the Application**
 
    The deployment starts automatically after you connect the repository. Render will:
    - Build your application
@@ -424,7 +439,7 @@ Render is configured as the production deployment platform with free tier suppor
 
    You can view deployment progress in the Render dashboard.
 
-6. **Run Database Migrations on Production (First Time)**
+7. **Run Database Migrations on Production (First Time)**
 
    Option 1 - Using Render Shell:
 
@@ -443,6 +458,7 @@ Render is configured as the production deployment platform with free tier suppor
    export DB_PORT="5432"
    export DB_USERNAME="postgres"
    export DB_PASSWORD="your-db-password"
+   export DB_NAME="payroll_engine"
    bun prisma migrate deploy
    bun seed
    ```
@@ -750,6 +766,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=your_password_here
+DB_NAME=payroll_engine
 
 # Application
 NODE_ENV=development
@@ -769,6 +786,7 @@ DB_HOST=your-supabase-db-host
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=your-supabase-password
+DB_NAME=payroll_engine
 
 # Application
 NODE_ENV=production
