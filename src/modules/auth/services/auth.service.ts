@@ -45,6 +45,7 @@ export class AuthService {
     return {
       sub: user.id,
       email: user.email,
+      fullName: user.fullName,
       role: user.role,
       tenantId: user.tenantId,
     }
