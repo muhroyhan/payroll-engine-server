@@ -29,6 +29,14 @@ type MockPrisma = {
       }) => Promise<User>
     >
   }
+  tenant: {
+    findUnique: jest.MockedFunction<
+      (args: {
+        where: Record<string, unknown>
+        select: Record<string, unknown>
+      }) => Promise<{ name: string } | null>
+    >
+  }
 }
 
 type MockJwt = {
@@ -90,6 +98,11 @@ function makePrismaMock(userOverrides: Partial<User> = {}): MockPrisma {
       findFirst: jest.fn().mockResolvedValue(user),
       findUnique: jest.fn().mockResolvedValue(user),
       update: jest.fn().mockResolvedValue(user),
+    },
+    tenant: {
+      findUnique: jest.fn().mockResolvedValue({
+        name: 'Test Tenant',
+      }),
     },
   }
 }

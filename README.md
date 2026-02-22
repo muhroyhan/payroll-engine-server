@@ -351,135 +351,192 @@ bun test:e2e -- auth.e2e-spec
 
 ## Deployment
 
-### Deploying to Fly.io
+### Deploying to Render
 
-Fly.io is configured as the production deployment platform. The configuration is in `fly.toml`.
+Render is configured as the production deployment platform with free tier support. The configuration is in `render.yaml`.
 
 #### Prerequisites
 
-1. **Fly CLI** - Install from [fly.io/docs](https://fly.io/docs/getting-started/installing-flyctl/)
-2. **Fly Account** - Create at [fly.io](https://fly.io)
-3. **PostgreSQL Database** - Set up on Fly.io or use external provider
+1. **Render Account** - Create at [render.com](https://render.com)
+2. **GitHub Repository** - Push code to GitHub (Render integrates directly)
+3. **Environment Variables** - Set up JWT_SECRET and DATABASE_URL in Render dashboard
 
-#### Deployment Steps
+#### Quick Deployment Steps
 
-1. **Authenticate with Fly**
+1. **Connect GitHub Repository to Render**
+   - Go to [Render Dashboard](https://dashboard.render.com)
+   - Click "New Web Service"
+   - Select "Deploy an existing repository from GitHub"
+   - Connect your GitHub account and select the `payroll-engine-server` repository
 
-   ```bash
-   flyctl auth login
+2. **Configure Service Settings**
+   - **Name**: `payroll-engine-server`
+   - **Runtime**: `Node`
+   - **Plan**: `Free` (for portfolio/testing)
+   - **Region**: Choose closest to you (e.g., `Oregon`, `Frankfurt`, `Singapore`)
+   - **Branch**: `feature/tenant` (or your deployment branch)
+   - **Build Command**: `bun install && bun run build`
+   - **Start Command**: `bun run start:prod`
+
+3. **Set Environment Variables**
+
+   In the Render dashboard, add these environment variables:
+
+   ```
+   # Application
+   NODE_ENV = production
+   PORT = 3000
+   JWT_SECRET = your-strong-jwt-secret-here
+
+   # Database (Supabase connection details)
+   DB_HOST = your-supabase-db-host
+   DB_PORT = 5432
+   DB_USERNAME = postgres
+   DB_PASSWORD = your-supabase-db-password
+   DB_NAME = your-database-name
    ```
 
-2. **Set Environment Variables**
+4. **Create PostgreSQL Database (Using Supabase - Recommended)**
+   - Sign up at [supabase.com](https://supabase.com) (free tier available)
+   - Create a new project
+   - Go to Project Settings → Database → Connection strings
+   - Copy the connection details:
+     - **Host**: Extract from connection string or find in Database settings
+     - **Password**: Found in Database settings (your user password)
+     - **Username**: `postgres` (default)
+     - **Port**: `5432` (default)
+   - Set these values in Render dashboard environment variables above
 
-   ```bash
-   # Set production secrets
-   flyctl secrets set \
-     JWT_SECRET="your-strong-jwt-secret" \
-     DB_HOST="your-db-host" \
-     DB_PORT="5432" \
-     DB_USERNAME="postgres" \
-     DB_PASSWORD="your-db-password" \
-     NODE_ENV="production"
+   **Alternative: Use Render's Free Database**
+   - In Render Dashboard, click "New PostgreSQL"
+   - Choose **Free** plan
+   - Name: `payroll-db`
+   - Database: `payroll_engine`
+   - Region: Same as API service
+   - Copy the generated connection details and set them as `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD` environment variables above
+
+5. **Setup GitHub Secrets (for CI/CD Database Migrations)**
+
+   The GitHub Actions workflow needs database credentials to run migrations automatically. Set these at `github.com/yourrepo/settings/secrets/actions`:
+
+   ```
+   DB_HOST         your-supabase-or-render-db-host
+   DB_PORT         5432
+   DB_USERNAME     postgres
+   DB_PASSWORD     your-database-password
+   DB_NAME         payroll_engine
    ```
 
-3. **Create PostgreSQL Database (if needed)**
+   These secrets will be used by the CI/CD pipeline to run `prisma migrate deploy` automatically during deployment.
+
+6. **Deploy the Application**
+
+   The deployment starts automatically after you connect the repository. Render will:
+   - Build your application
+   - Create the container
+   - Deploy to production
+   - Monitor health checks
+
+   You can view deployment progress in the Render dashboard.
+
+7. **Run Database Migrations on Production (First Time)**
+
+   Option 1 - Using Render Shell:
 
    ```bash
-   # Create new Postgres database on Fly.io
-   flyctl postgres create
-
-   # Or use external database - just set DB_* environment variables
-   ```
-
-4. **Update Database URL in fly.toml**
-
-   If using external database, ensure the connection string is correct:
-
-   ```toml
-   [env]
-     DATABASE_URL = "postgresql://user:password@host:port/database"
-   ```
-
-5. **Deploy the Application**
-
-   ```bash
-   # Deploy to production
-   flyctl deploy
-
-   # Monitor deployment
-   flyctl status
-
-   # View logs
-   flyctl logs
-   ```
-
-6. **Run Database Migrations on Production**
-
-   ```bash
-   # SSH into the app machine
-   flyctl ssh console
-
-   # Run migrations
+   # In Render Dashboard → Your Service → Shell tab
    bun prisma migrate deploy
-
-   # Seed data (optional)
+   # Optional: seed data
    bun seed
+   ```
 
-   # Exit
-   exit
+   Option 2 - Connect locally to production database:
+
+   ```bash
+   # Set environment variables to your production database
+   export DB_HOST="your-db-host"
+   export DB_PORT="5432"
+   export DB_USERNAME="postgres"
+   export DB_PASSWORD="your-db-password"
+   export DB_NAME="payroll_engine"
+   bun prisma migrate deploy
+   bun seed
    ```
 
 #### Post-Deployment Verification
 
-1. Check app status:
-
-   ```bash
-   flyctl status
-   ```
+1. Check service status:
+   - View in Render Dashboard → Your Service
 
 2. View recent logs:
-
-   ```bash
-   flyctl logs -n 50
-   ```
+   - Render Dashboard → Your Service → Logs tab
 
 3. Test the API:
 
    ```bash
-   curl https://<app-name>.fly.dev/health
+   curl https://<your-service-name>.onrender.com/health
    ```
 
 4. Access Swagger documentation:
    ```
-   https://<app-name>.fly.dev/docs
+   https://<your-service-name>.onrender.com/docs
    ```
 
-#### Deployment Configuration Explained
+#### Deployment Configuration in render.yaml
 
-The `fly.toml` file contains:
+The `render.yaml` file defines:
 
-```toml
-app = 'payroll-engine-server'              # App name on Fly.io
-primary_region = 'sin'                     # Singapore region (adjust as needed)
-
-[env]
-  NODE_ENV = 'production'                  # Production environment
-  PORT = '3000'                            # Internal port
-
-[http_service]
-  internal_port = 3000                     # Port inside container
-  force_https = true                       # HTTPS enforced
-  auto_stop_machines = 'stop'              # Stop idle machines
-  auto_start_machines = true               # Restart on demand
-  min_machines_running = 0                 # Scale to 0 when idle
-
-[[vm]]
-  size = 'shared-cpu-1x'                   # Machine size (adjust for production)
+```yaml
+services:
+  - type: web # Web service
+    name: payroll-engine-server # Service name
+    runtime: node # Node.js runtime
+    plan: free # Free tier
+    buildCommand: bun install && bun run build
+    startCommand: bun run start:prod
+    envVars: # Environment variables
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false # Set manually in dashboard
+      - key: DB_HOST
+        sync: false # Supabase host
+      - key: DB_PORT
+        value: '5432'
+      - key: DB_USERNAME
+        value: postgres
+      - key: DB_PASSWORD
+        sync: false # Set manually in dashboard
+      - key: PORT
+        value: '3000'
 ```
 
-**Regions Available**: `syd` (Sydney), `sin` (Singapore), `sjc` (San Jose), `ams` (Amsterdam), etc.
+**Note:** Database connection uses individual DB\_\* variables configured in Render dashboard.
 
-**VM Sizes**: `shared-cpu-1x` (small), `performance-1x` (medium), `performance-2x` (large)
+#### Free Tier Limits & Considerations
+
+**Free Plan Includes:**
+
+- Shared CPU (reasonable for portfolio projects)
+- 0.5 GB RAM
+- 100 GB storage
+- Automatic deploys from GitHub
+- SSL/TLS certificate included
+- Basic monitoring
+
+**Database:** PostgreSQL is managed separately via Supabase (free tier available)
+
+**Free Plan Limits:**
+
+- Services spin down after 15 minutes of inactivity (cold start ~30 seconds)
+- No custom domains (use `*.onrender.com`)
+- Limited to 1 concurrent build
+
+**For Better Performance (Upgrade When Needed):**
+
+- Paid plans include always-on service (no cold starts)
+- Custom domains
+- Priority support
 
 ### Alternative Deployment Options
 
@@ -591,32 +648,52 @@ bun prisma db pull
 bun prisma migrate dev
 ```
 
-### Production Issues
+### Production Issues (Render)
 
 #### Application Won't Start
 
-```bash
-# Check logs
-flyctl logs -n 100
+Check the Render dashboard:
 
-# Check environment variables
-flyctl secrets list
+1. **View Logs** - Service → Logs tab
+2. **Check Environment Variables** - Service → Environment tab
+3. **Review Build Output** - Service → Events tab
+4. **Test Database Connection**:
+   ```bash
+   # Use Render's shell to test connection
+   psql -h <database-host> -U <user> -d <database>
+   ```
 
-# Verify database connection
-flyctl ssh console  # Then test connection
-```
+#### Cold Start (Free Plan)
+
+If your service takes 30+ seconds to respond:
+
+- This is expected on the free tier (services sleep after 15 min inactivity)
+- First request after sleep triggers a cold start
+- **Solution**: Upgrade to a paid plan for always-on service
 
 #### Database Migrations Failed
 
-```bash
-# SSH into app
-flyctl ssh console
+In Render Dashboard → Your Service → Shell:
 
+```bash
 # Check migration status
 bun prisma migrate status
 
 # Run migrations
 bun prisma migrate deploy
+
+# Seed data (optional)
+bun seed
+```
+
+#### View and Tail Logs
+
+```bash
+# In Render Dashboard
+Service → Logs tab (real-time streaming)
+
+# Or from Render CLI (if installed)
+render logs --service payroll-engine-server --tail
 ```
 
 ## Code Quality & Best Practices
@@ -689,6 +766,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=your_password_here
+DB_NAME=payroll_engine
 
 # Application
 NODE_ENV=development
@@ -698,17 +776,24 @@ PORT=3000
 JWT_SECRET=your_jwt_secret_here
 ```
 
-### Production (Fly.io)
+### Production (Render)
 
-Set these using `flyctl secrets set`:
+Set these in Render Dashboard → Service → Environment:
 
-```
-JWT_SECRET=strong-random-string
-DB_HOST=your-db-host
+```env
+# Database (Supabase)
+DB_HOST=your-supabase-db-host
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=secure-password
+DB_PASSWORD=your-supabase-password
+DB_NAME=payroll_engine
+
+# Application
 NODE_ENV=production
+PORT=3000
+
+# Security
+JWT_SECRET=strong-random-string
 ```
 
 ## Performance Optimization
@@ -726,7 +811,7 @@ NODE_ENV=production
 - Database query optimization and indexing
 - API rate limiting (throttle guard implemented)
 - Response compression
-- Load balancing (Fly.io handles this)
+- Load balancing (Render handles this)
 - Database backups and monitoring
 
 ## Monitoring & Logs
@@ -741,17 +826,15 @@ docker compose logs -f api
 docker compose logs -f db
 ```
 
-### Production (Fly.io)
+### Production (Render)
 
 ```bash
-# Real-time logs
-flyctl logs
+# View logs in Render Dashboard
+# Service → Logs tab (real-time streaming)
 
-# Last 100 log messages
-flyctl logs -n 100
-
-# Stream specific region
-flyctl logs -f
+# Or using Render CLI:
+render logs --service payroll-engine-server --tail
+render logs --service payroll-engine-server --limit 100
 ```
 
 ## Contributing
@@ -795,7 +878,7 @@ bun format && bun lint --fix
 - **NestJS** - https://docs.nestjs.com
 - **Prisma** - https://www.prisma.io/docs
 - **PostgreSQL** - https://www.postgresql.org/docs
-- **Fly.io** - https://fly.io/docs
+- **Render** - https://render.com/docs
 - **TypeScript** - https://www.typescriptlang.org/docs
 - **JWT** - https://jwt.io/introduction
 - **bun** - https://bun.sh/docs

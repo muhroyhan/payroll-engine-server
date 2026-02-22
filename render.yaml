@@ -1,0 +1,38 @@
+version: 1
+
+services:
+  # Main API Service
+  - type: web
+    name: payroll-engine-server
+    runtime: node
+    plan: free
+    buildCommand: bun i && bun prisma generate && bun run build
+    startCommand: bun run start:prod
+
+    # Environment variables
+    envVars:
+      # Application config (hardcoded values)
+      - key: NODE_ENV
+        value: production
+
+      - key: PORT
+        value: '3000'
+
+      # Secrets - set these in Render Dashboard from GitHub Secrets
+      - key: JWT_SECRET
+        value: ''
+
+      - key: DB_HOST
+        value: ''
+
+      - key: DB_PORT
+        value: ''
+
+      - key: DB_USERNAME
+        value: ''
+
+      - key: DB_PASSWORD
+        value: ''
+
+      - key: DB_NAME
+        value: ''
