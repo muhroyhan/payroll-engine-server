@@ -1,7 +1,7 @@
 name: CI/CD — Test, Version, Build & Deploy
 
 # ─── Trigger ────────────────────────────────────────────────────────────────
-# Runs on every push to the master branch.
+# Runs on every push to master branch.
 on:
   push:
     branches:
@@ -72,6 +72,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   version-bump:
     name: Bump SemVer & Update Changelog
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     needs: test
 
@@ -346,8 +347,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: master
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -366,3 +365,27 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| **Host** | \`${{ secrets.DB_HOST }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Version** | \`${{ needs.build-and-push.outputs.version_tag }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ── 6. Deploy to Render ─────────────────────────────────────────────────────────
+  deploy-to-render:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: db-migrate
+
+    steps:
+      - name: Trigger Render Deployment
+        run: |
+          curl --request POST \
+            --url '${{ secrets.RENDER_DEPLOY_HOOK_URL }}' \
+            --header 'Content-Type: application/json' \
+            -w '\nHTTP Status: %{http_code}\n'
+
+      - name: Write deployment summary
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "## Deployed to Render" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`$BRANCH\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | Deployment triggered |" >> $GITHUB_STEP_SUMMARY
