@@ -1,4 +1,4 @@
-version: 3
+version: 1
 
 services:
   # Main API Service
@@ -6,33 +6,33 @@ services:
     name: payroll-engine-server
     runtime: node
     plan: free
-    buildCommand: bun install && bun run build
+    buildCommand: bun i && bun prisma generate && bun run build
     startCommand: bun run start:prod
+
+    # Environment variables
     envVars:
+      # Application config (hardcoded values)
       - key: NODE_ENV
         value: production
+
       - key: PORT
         value: '3000'
+
+      # Secrets - set these in Render Dashboard from GitHub Secrets
       - key: JWT_SECRET
-        sync: true
+        value: ''
+
       - key: DB_HOST
-        sync: true
+        value: ''
+
       - key: DB_PORT
-        sync: true
+        value: ''
+
       - key: DB_USERNAME
-        sync: true
+        value: ''
+
       - key: DB_PASSWORD
-        sync: true
+        value: ''
+
       - key: DB_NAME
-        sync: true
-    maxShutdownDelaySeconds: 30
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      - path: /*
-        name: Referrer-Policy
-        value: strict-origin-when-cross-origin
+        value: ''
