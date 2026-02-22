@@ -1,4 +1,4 @@
-version: 3
+version: 1
 
 services:
   # Main API Service
@@ -9,9 +9,6 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm run start:prod
 
-    # Pre-deploy command to run database migrations
-    preDeployCommand: npx prisma migrate deploy --config prisma.config.ts
-
     # Environment variables
     envVars:
       # Application config (hardcoded values)
@@ -21,21 +18,21 @@ services:
       - key: PORT
         value: '3000'
 
-      # Secrets from GitHub Secrets (sync: true = pull from GitHub Secrets)
+      # Secrets - set these in Render Dashboard from GitHub Secrets
       - key: JWT_SECRET
-        sync: true
+        value: ''
 
       - key: DB_HOST
-        sync: true
+        value: ''
 
       - key: DB_PORT
-        sync: true
+        value: ''
 
       - key: DB_USERNAME
-        sync: true
+        value: ''
 
       - key: DB_PASSWORD
-        sync: true
+        value: ''
 
       - key: DB_NAME
-        sync: true
+        value: ''
