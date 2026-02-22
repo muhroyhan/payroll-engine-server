@@ -1,6 +1,6 @@
 {
   "name": "payroll-engine-server",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "",
   "author": "",
   "private": true,
@@ -93,14 +93,17 @@
     ],
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", {
-        "tsconfig": {
-          "module": "CommonJS",
-          "moduleResolution": "node",
-          "resolvePackageJsonExports": false,
-          "esModuleInterop": false
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "module": "CommonJS",
+            "moduleResolution": "node",
+            "resolvePackageJsonExports": false,
+            "esModuleInterop": false
+          }
         }
-      }]
+      ]
     },
     "moduleNameMapper": {
       "^@src/(.*)$": "<rootDir>/src/$1",
