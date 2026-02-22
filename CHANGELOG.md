@@ -15,6 +15,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ---
 
+## [0.1.4] - 2026-02-22
+
+### Other Changes
+
+- Merge pull request #16 from muhroyhan/develop
+- revert
+- fix error build
+- fix render blueprint
+- update render blueprint
+
+
 ## [0.1.3] - 2026-02-22
 
 ### Other Changes
