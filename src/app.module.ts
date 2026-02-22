@@ -8,11 +8,9 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 import { ValidationPipe } from './common/pipes/validation.pipe'
-import { PrismaModule } from './database/prisma.module'
 
 @Module({
   imports: [
-    PrismaModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [
