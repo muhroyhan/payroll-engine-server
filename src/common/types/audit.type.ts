@@ -15,9 +15,9 @@ export interface AuditMetadata {
  * Audit context passed through service operations
  */
 export interface AuditContext {
-  userId: string // Current user ID performing the action
+  userId: number // Current user ID performing the action
   userFullName: string // Current user's full name
-  tenantId: string // Tenant context
+  tenantId: number // Tenant context
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ'
   timestamp: Date
   metadata?: Record<string, any>
@@ -27,8 +27,8 @@ export interface AuditContext {
  * JWT payload added to request by Passport strategy
  */
 export interface JwtPayload {
-  sub: string // User ID
-  tenantId: string // Tenant ID
+  sub: number // User ID
+  tenantId: number // Tenant ID
   email?: string
   roles?: string[]
 }

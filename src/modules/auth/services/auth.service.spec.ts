@@ -67,12 +67,12 @@ const HASHED_PASSWORD =
 
 function baseUser(): User {
   return {
-    id: 'user-uuid-1',
+    id: 1,
     email: 'admin@example.com',
     password: HASHED_PASSWORD,
     fullName: 'Test Admin',
     role: 'tenant_admin',
-    tenantId: 'tenant-uuid-1',
+    tenantId: 1,
     isActive: true,
     refreshToken: null,
     createdAt: new Date(),
@@ -111,10 +111,11 @@ function makeJwtMock(): MockJwt {
   return {
     signAsync: jest.fn().mockResolvedValue('signed-token'),
     verifyAsync: jest.fn().mockResolvedValue({
-      sub: 'user-uuid-1',
+      sub: 1,
       email: 'admin@example.com',
+      fullName: 'Test Admin',
       role: 'tenant_admin',
-      tenantId: 'tenant-uuid-1',
+      tenantId: 1,
     }),
   }
 }
@@ -410,12 +411,12 @@ describe('AuthService', () => {
   describe('getCurrentUser', () => {
     it('returns safe user without password or refreshToken', async () => {
       const { service } = makeService()
-      const result = await service.getCurrentUser('user-uuid-1')
+      const result = await service.getCurrentUser(1)
       expect(result).toMatchObject({
-        id: 'user-uuid-1',
+        id: 1,
         email: 'admin@example.com',
         role: 'tenant_admin',
-        tenantId: 'tenant-uuid-1',
+        tenantId: 1,
       })
       expect(Object.keys(result)).not.toContain('password')
       expect(Object.keys(result)).not.toContain('refreshToken')
@@ -425,7 +426,7 @@ describe('AuthService', () => {
       const { service, prisma } = makeService()
       prisma.user.findUnique.mockResolvedValue(null)
 
-      await expect(service.getCurrentUser('ghost-id')).rejects.toBeInstanceOf(
+      await expect(service.getCurrentUser(999999)).rejects.toBeInstanceOf(
         UnauthorizedException,
       )
     })
@@ -434,7 +435,7 @@ describe('AuthService', () => {
       const { service } = makeService({ isActive: false })
 
       await expect(
-        service.getCurrentUser('user-uuid-1'),
+        service.getCurrentUser(1),
       ).rejects.toBeInstanceOf(UnauthorizedException)
     })
   })
@@ -444,16 +445,16 @@ describe('AuthService', () => {
   describe('logout', () => {
     it('sets refreshToken to null in DB', async () => {
       const { service, prisma } = makeService()
-      await service.logout('user-uuid-1')
+      await service.logout(1)
       expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-uuid-1' },
+        where: { id: 1 },
         data: { refreshToken: null },
       })
     })
 
     it('returns { success: true }', async () => {
       const { service } = makeService()
-      const result = await service.logout('user-uuid-1')
+      const result = await service.logout(1)
       expect(result).toEqual({ success: true })
     })
   })

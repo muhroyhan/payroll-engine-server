@@ -61,7 +61,7 @@ export class TenantService extends BaseService<
   /**
    * Get single tenant by ID
    */
-  async findOne(id: string, auditContext: AuditContext): Promise<TenantDto> {
+  async findOne(id: number, auditContext: AuditContext): Promise<TenantDto> {
     this.logWithContext('log', `Fetching tenant ${id}`, auditContext)
 
     const tenant = await this.prisma.tenant.findUnique({
@@ -134,7 +134,7 @@ export class TenantService extends BaseService<
    * Update tenant
    */
   async update(
-    id: string,
+    id: number,
     updateDto: UpdateTenantDto,
     auditContext: AuditContext,
   ): Promise<TenantDto> {
@@ -177,7 +177,7 @@ export class TenantService extends BaseService<
    * @throws BadRequestException if tenant has related data
    * @throws NotFoundException if tenant not found
    */
-  async delete(id: string, auditContext: AuditContext): Promise<void> {
+  async delete(id: number, auditContext: AuditContext): Promise<void> {
     this.logWithContext('log', `Deleting tenant ${id}`, auditContext)
 
     const tenant = await this.prisma.tenant.findUnique({
@@ -249,7 +249,7 @@ export class TenantService extends BaseService<
   /**
    * Get tenant users count
    */
-  async getTenantUsersCount(tenantId: string): Promise<number> {
+  async getTenantUsersCount(tenantId: number): Promise<number> {
     return this.prisma.user.count({
       where: { tenantId },
     })
@@ -258,7 +258,7 @@ export class TenantService extends BaseService<
   /**
    * Get tenant employees count
    */
-  async getTenantEmployeesCount(tenantId: string): Promise<number> {
+  async getTenantEmployeesCount(tenantId: number): Promise<number> {
     return this.prisma.employee.count({
       where: { tenantId },
     })

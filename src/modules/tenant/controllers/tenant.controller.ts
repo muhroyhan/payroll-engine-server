@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  ParseIntPipe,
   Param,
   Patch,
   Post,
@@ -87,7 +88,7 @@ export class TenantController {
     description: 'Unauthorized',
   })
   async findOne(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<TenantDto>> {
     const auditContext = buildAuditContext(request, 'READ')
@@ -154,7 +155,7 @@ export class TenantController {
     description: 'Unauthorized',
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateTenantDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<TenantDto>> {
@@ -188,7 +189,7 @@ export class TenantController {
     description: 'Unauthorized',
   })
   async delete(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
     const auditContext = buildAuditContext(request, 'DELETE')
@@ -216,7 +217,7 @@ export class TenantController {
     description: 'Tenant not found',
   })
   async getStats(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<any>> {
     const auditContext = buildAuditContext(request, 'READ')

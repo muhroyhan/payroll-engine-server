@@ -54,8 +54,8 @@ export function buildAuditContext(
  * @throws Error if user or tenant not found
  */
 export function ensureUserContext(request: AuthenticatedRequest): {
-  userId: string
-  tenantId: string
+  userId: number
+  tenantId: number
 } {
   const user = request.user
 

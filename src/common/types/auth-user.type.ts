@@ -1,9 +1,9 @@
 import type { Role } from './role.type'
 
 export type AuthUser = {
-  userId: string
+  userId: number
   email: string
   fullName: string
   role: Role
-  tenantId: string
+  tenantId: number
 }

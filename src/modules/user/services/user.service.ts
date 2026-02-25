@@ -56,7 +56,7 @@ export class UserService extends BaseService<
     )
   }
 
-  async findOne(id: string, auditContext: AuditContext): Promise<UserDto> {
+  async findOne(id: number, auditContext: AuditContext): Promise<UserDto> {
     this.logWithContext('log', `Fetching user ${id}`, auditContext)
 
     const user = await this.prisma.user.findFirst({
@@ -114,7 +114,7 @@ export class UserService extends BaseService<
   }
 
   async update(
-    id: string,
+    id: number,
     updateDto: UpdateUserDto,
     auditContext: AuditContext,
   ): Promise<UserDto> {
@@ -169,7 +169,7 @@ export class UserService extends BaseService<
     return this.toDto(updated)
   }
 
-  async delete(id: string, auditContext: AuditContext): Promise<void> {
+  async delete(id: number, auditContext: AuditContext): Promise<void> {
     this.logWithContext('log', `Deleting user ${id}`, auditContext)
 
     const existing = await this.prisma.user.findFirst({

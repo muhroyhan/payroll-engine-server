@@ -116,15 +116,15 @@ export class UpdateUserDto {
 export class UserDto {
   @ApiProperty({
     description: 'User ID',
-    example: '550e8400-e29b-41d4-a716-446655440000',
+    example: 1,
   })
-  id!: string
+  id!: number
 
   @ApiProperty({
     description: 'Tenant ID',
-    example: '550e8400-e29b-41d4-a716-446655440000',
+    example: 1,
   })
-  tenantId!: string
+  tenantId!: number
 
   @ApiProperty({
     description: 'User email address',

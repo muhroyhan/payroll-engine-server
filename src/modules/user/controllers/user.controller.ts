@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  ParseIntPipe,
   Param,
   Patch,
   Post,
@@ -70,7 +71,7 @@ export class UserController {
     type: SingleResponse,
   })
   async findOne(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<UserDto>> {
     const auditContext = buildAuditContext(request, 'READ')
@@ -111,7 +112,7 @@ export class UserController {
     type: SingleResponse,
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateUserDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<SingleResponse<UserDto>> {
@@ -132,7 +133,7 @@ export class UserController {
     description: 'User deleted successfully',
   })
   async delete(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
     const auditContext = buildAuditContext(request, 'DELETE')

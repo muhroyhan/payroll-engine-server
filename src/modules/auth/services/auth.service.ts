@@ -107,7 +107,7 @@ export class AuthService {
    * (the JWT signature already guarantees integrity).
    */
   private async storeRefreshToken(
-    userId: string,
+    userId: number,
     refreshToken: string,
   ): Promise<void> {
     try {
@@ -261,7 +261,7 @@ export class AuthService {
    * - All existing tokens remain valid until expiration (especially access token at 15m)
    * Access tokens cannot be revoked without a blacklist (consider adding for longer expiry)
    */
-  async logout(userId: string): Promise<{ success: true }> {
+  async logout(userId: number): Promise<{ success: true }> {
     try {
       await this.prisma.user.update({
         where: { id: userId },
@@ -280,7 +280,7 @@ export class AuthService {
    * Get current user profile
    * Validates user exists and is active
    */
-  async getCurrentUser(userId: string): Promise<SafeUser> {
+  async getCurrentUser(userId: number): Promise<SafeUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     })

@@ -37,7 +37,7 @@ export abstract class BaseService<T, CreateDto = any, UpdateDto = any> {
    * @returns The entity
    * @throws NotFoundException if entity not found
    */
-  abstract findOne(id: string, auditContext: AuditContext): Promise<T>
+  abstract findOne(id: number, auditContext: AuditContext): Promise<T>
 
   /**
    * Create a new entity
@@ -58,7 +58,7 @@ export abstract class BaseService<T, CreateDto = any, UpdateDto = any> {
    * @throws NotFoundException if entity not found
    */
   abstract update(
-    id: string,
+    id: number,
     updateDto: UpdateDto,
     auditContext: AuditContext,
   ): Promise<T>
@@ -70,7 +70,7 @@ export abstract class BaseService<T, CreateDto = any, UpdateDto = any> {
    * @param auditContext - Audit context with user and tenant info
    * @throws NotFoundException if entity not found
    */
-  abstract delete(id: string, auditContext: AuditContext): Promise<void>
+  abstract delete(id: number, auditContext: AuditContext): Promise<void>
 
   /**
    * Helper method to calculate pagination offset
