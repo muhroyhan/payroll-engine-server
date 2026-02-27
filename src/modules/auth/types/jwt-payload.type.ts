@@ -5,5 +5,5 @@ export type JwtPayload = {
   email: string
   fullName: string
   role: Role
-  tenantId: number
+  tenantId: number | null
 }

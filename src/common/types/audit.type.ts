@@ -17,7 +17,8 @@ export interface AuditMetadata {
 export interface AuditContext {
   userId: number // Current user ID performing the action
   userFullName: string // Current user's full name
-  tenantId: number // Tenant context
+  role: AuthUser['role']
+  tenantId: number | null // Tenant context (nullable for superadmin)
   action: 'CREATE' | 'UPDATE' | 'DELETE' | 'READ'
   timestamp: Date
   metadata?: Record<string, any>
@@ -28,7 +29,7 @@ export interface AuditContext {
  */
 export interface JwtPayload {
   sub: number // User ID
-  tenantId: number // Tenant ID
+  tenantId: number | null // Tenant ID (nullable for superadmin)
   email?: string
   roles?: string[]
 }

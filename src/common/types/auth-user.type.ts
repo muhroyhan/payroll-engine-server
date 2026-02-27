@@ -5,5 +5,5 @@ export type AuthUser = {
   email: string
   fullName: string
   role: Role
-  tenantId: number
+  tenantId: number | null
 }

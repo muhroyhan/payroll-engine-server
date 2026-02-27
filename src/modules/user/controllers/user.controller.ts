@@ -50,7 +50,8 @@ export class UserController {
   @Roles('tenant_admin', 'payroll_officer')
   @ApiOperation({
     summary: 'List tenant users',
-    description: 'Get paginated list of users inside current tenant',
+    description:
+      'Get paginated list of users inside current tenant (superadmin can view all tenants)',
   })
   @ApiResponse({
     status: 200,
@@ -88,7 +89,8 @@ export class UserController {
   @Roles('tenant_admin', 'payroll_officer')
   @ApiOperation({
     summary: 'Get user by ID',
-    description: 'Get user details within current tenant scope',
+    description:
+      'Get user details within current tenant scope (superadmin can access all tenants)',
   })
   @ApiResponse({
     status: 200,
@@ -109,7 +111,8 @@ export class UserController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create user',
-    description: 'Create new user in current tenant',
+    description:
+      'Create new user in current tenant (superadmin can create without tenant or assign a tenantId)',
   })
   @ApiResponse({
     status: 201,

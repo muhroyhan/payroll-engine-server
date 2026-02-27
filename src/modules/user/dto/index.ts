@@ -11,7 +11,12 @@ import {
 } from 'class-validator'
 import type { Role } from '@src/common/types'
 
-const ROLES: Role[] = ['tenant_admin', 'payroll_officer', 'viewer']
+const ROLES: Role[] = [
+  'superadmin',
+  'tenant_admin',
+  'payroll_officer',
+  'viewer',
+]
 
 export class UserTenantOptionsQueryDto {
   @ApiPropertyOptional({
@@ -92,7 +97,7 @@ export class CreateUserDto {
   isActive?: boolean
 
   @ApiPropertyOptional({
-    description: 'Tenant ID to assign user to',
+    description: 'Tenant ID to assign user to (optional for superadmin)',
     example: 1,
   })
   @IsOptional()
@@ -159,11 +164,11 @@ export class UserDto {
   })
   id!: number
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Tenant ID',
     example: 1,
   })
-  tenantId!: number
+  tenantId!: number | null
 
   @ApiPropertyOptional({
     description: 'Tenant name',

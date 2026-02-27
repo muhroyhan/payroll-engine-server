@@ -182,10 +182,13 @@ export class AuthService {
     this.throttler.clearAttempts(user.email)
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     return {
       accessToken: tokens.accessToken,
@@ -242,10 +245,13 @@ export class AuthService {
     await this.storeRefreshToken(user.id, tokens.refreshToken)
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     this.logger.log(`Token refreshed for user: ${user.id}`)
     return {
@@ -290,10 +296,13 @@ export class AuthService {
     }
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     return this.toSafeUser(user, tenant?.name)
   }

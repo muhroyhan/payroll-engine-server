@@ -5,7 +5,7 @@ export type SafeUser = {
   email: string
   fullName: string
   role: Role
-  tenantId: number
+  tenantId: number | null
   tenantName?: string
 }
 

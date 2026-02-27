@@ -36,6 +36,20 @@ async function main() {
 
   const userData = [
     {
+      email: 'superadmin@admin.com',
+      password: hashSync(
+        'Test12345!',
+        genSaltSync(AUTH_CONFIG.PASSWORD.BCRYPT_SALT_ROUNDS),
+      ),
+      fullName: 'Super Admin',
+      role: $Enums.Role.superadmin,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
       email: 'admin@admin.com',
       password: hashSync(
         'Test12345!',

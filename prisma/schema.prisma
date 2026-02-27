@@ -34,6 +34,7 @@ model Tenant {
 }
 
 enum Role {
+  superadmin
   tenant_admin
   payroll_officer
   viewer
@@ -41,8 +42,8 @@ enum Role {
 
 model User {
   id           Int      @id @default(autoincrement())
-  tenantId     Int
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
   email        String   @unique
   password     String
   fullName     String

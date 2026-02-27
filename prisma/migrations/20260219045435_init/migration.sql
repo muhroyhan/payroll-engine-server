@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('tenant_admin', 'payroll_officer', 'viewer');
+CREATE TYPE "Role" AS ENUM ('superadmin', 'tenant_admin', 'payroll_officer', 'viewer');
 
 -- CreateEnum
 CREATE TYPE "EmployeeType" AS ENUM ('permanent', 'contract');
@@ -29,7 +29,7 @@ CREATE TABLE "Tenant" (
 -- CreateTable
 CREATE TABLE "User" (
     "id" SERIAL NOT NULL,
-    "tenantId" INTEGER NOT NULL,
+    "tenantId" INTEGER,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
@@ -250,7 +250,7 @@ CREATE INDEX "Payslip_payslipRunId_idx" ON "Payslip"("payslipRunId");
 CREATE INDEX "PayslipItem_payslipId_idx" ON "PayslipItem"("payslipId");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AuditLogs" ADD CONSTRAINT "AuditLogs_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -11,13 +11,18 @@ import type { AuditContext, AuthenticatedRequest } from '../types/audit.type'
 export function getAuditContext(request: AuthenticatedRequest): AuditContext {
   const user = request.user
 
-  if (!user || !user.userId || !user.fullName || !user.tenantId) {
+  if (!user || !user.userId || !user.fullName || !user.role) {
     throw new Error('User context not found in request')
+  }
+
+  if (user.role !== 'superadmin' && user.tenantId === null) {
+    throw new Error('Tenant context missing for non-superadmin user')
   }
 
   return {
     userId: user.userId, // User ID from authenticated request
     userFullName: user.fullName, // User full name
+    role: user.role,
     tenantId: user.tenantId, // Tenant ID from JWT claims
     action: 'READ', // Default action, can be overridden
     timestamp: new Date(),
@@ -55,20 +60,22 @@ export function buildAuditContext(
  */
 export function ensureUserContext(request: AuthenticatedRequest): {
   userId: number
-  tenantId: number
+  role: NonNullable<AuthenticatedRequest['user']>['role']
+  tenantId: number | null
 } {
   const user = request.user
 
-  if (!user || !user.userId) {
+  if (!user || !user.userId || !user.role) {
     throw new Error('User not authenticated')
   }
 
-  if (!user.tenantId) {
+  if (user.role !== 'superadmin' && user.tenantId === null) {
     throw new Error('Tenant context missing')
   }
 
   return {
     userId: user.userId,
+    role: user.role,
     tenantId: user.tenantId,
   }
 }
