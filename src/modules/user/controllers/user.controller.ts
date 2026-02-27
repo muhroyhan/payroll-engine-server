@@ -31,7 +31,13 @@ import { buildAuditContext } from '@src/common/utils'
 import { Roles } from '@src/common/decorators/roles.decorator'
 import { RolesGuard } from '@src/common/guards/roles.guard'
 import { UserService } from '../services'
-import { CreateUserDto, UpdateUserDto, UserDto } from '../dto'
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UserDto,
+  UserTenantOptionDto,
+  UserTenantOptionsQueryDto,
+} from '../dto'
 
 @ApiTags('User Management')
 @ApiBearerAuth()
@@ -57,6 +63,25 @@ export class UserController {
   ): Promise<PaginatedResponse<UserDto>> {
     const auditContext = buildAuditContext(request, 'READ')
     return this.userService.findAll(pagination, auditContext)
+  }
+
+  @Get('tenant-options')
+  @Roles('tenant_admin', 'payroll_officer')
+  @ApiOperation({
+    summary: 'Get tenant options for user form',
+    description:
+      'Get lightweight tenant options (id, name, code) for user add/edit form',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Tenant options retrieved successfully',
+    type: SingleResponse,
+  })
+  async getTenantOptions(
+    @Query() query: UserTenantOptionsQueryDto,
+  ): Promise<SingleResponse<UserTenantOptionDto[]>> {
+    const data = await this.userService.findTenantOptions(query.search)
+    return new SingleResponse(data, 'Tenant options retrieved successfully')
   }
 
   @Get(':id')

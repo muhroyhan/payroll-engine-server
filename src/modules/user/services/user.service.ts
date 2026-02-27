@@ -11,7 +11,12 @@ import { PaginatedResponse, PaginationDto } from '@src/common/dto'
 import type { AuditContext } from '@src/common/types'
 import { PrismaService } from '@src/database/prisma.service'
 import { AUTH_CONFIG } from '@src/modules/auth/auth.config'
-import { CreateUserDto, UpdateUserDto, UserDto } from '../dto'
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UserDto,
+  UserTenantOptionDto,
+} from '../dto'
 
 @Injectable()
 export class UserService extends BaseService<
@@ -44,6 +49,14 @@ export class UserService extends BaseService<
         skip: offset,
         take: normalized.limit,
         orderBy: this.buildSortConfig(normalized.sortBy, normalized.sortOrder),
+        include: {
+          tenant: {
+            select: {
+              name: true,
+              code: true,
+            },
+          },
+        },
       }),
       this.prisma.user.count({ where }),
     ])
@@ -54,6 +67,29 @@ export class UserService extends BaseService<
       normalized.page,
       normalized.limit,
     )
+  }
+
+  async findTenantOptions(search?: string): Promise<UserTenantOptionDto[]> {
+    const where: Prisma.TenantWhereInput = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { code: { contains: search, mode: 'insensitive' } },
+          ],
+        }
+      : {}
+
+    return this.prisma.tenant.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        code: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    })
   }
 
   async findOne(id: number, auditContext: AuditContext): Promise<UserDto> {
@@ -99,7 +135,7 @@ export class UserService extends BaseService<
 
     const user = await this.prisma.user.create({
       data: {
-        tenantId: auditContext.tenantId,
+        tenantId: createDto.tenantId ?? auditContext.tenantId,
         email: normalizedEmail,
         fullName: createDto.fullName,
         password,
@@ -226,10 +262,14 @@ export class UserService extends BaseService<
     }
   }
 
-  private toDto(user: User): UserDto {
+  private toDto(
+    user: User & { tenant?: { name: string; code: string } | null },
+  ): UserDto {
     return {
       id: user.id,
       tenantId: user.tenantId,
+      tenantName: user.tenant?.name,
+      tenantCode: user.tenant?.code,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
@@ -241,7 +281,9 @@ export class UserService extends BaseService<
     }
   }
 
-  private mapToDto(users: User[]): UserDto[] {
+  private mapToDto(
+    users: Array<User & { tenant?: { name: string; code: string } | null }>,
+  ): UserDto[] {
     return users.map((user) => this.toDto(user))
   }
 }

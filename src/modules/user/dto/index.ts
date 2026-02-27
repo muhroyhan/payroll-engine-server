@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEmail,
   IsIn,
+  IsNumber,
   IsOptional,
   IsString,
   IsStrongPassword,
@@ -11,6 +12,36 @@ import {
 import type { Role } from '@src/common/types'
 
 const ROLES: Role[] = ['tenant_admin', 'payroll_officer', 'viewer']
+
+export class UserTenantOptionsQueryDto {
+  @ApiPropertyOptional({
+    description: 'Optional search by tenant name or code',
+    example: 'acme',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string
+}
+
+export class UserTenantOptionDto {
+  @ApiProperty({
+    description: 'Tenant ID',
+    example: 1,
+  })
+  id!: number
+
+  @ApiProperty({
+    description: 'Tenant name',
+    example: 'Acme Corporation',
+  })
+  name!: string
+
+  @ApiProperty({
+    description: 'Tenant code',
+    example: 'TNT-000001',
+  })
+  code!: string
+}
 
 export class CreateUserDto {
   @ApiProperty({
@@ -59,6 +90,14 @@ export class CreateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  @ApiPropertyOptional({
+    description: 'Tenant ID to assign user to',
+    example: 1,
+  })
+  @IsOptional()
+  @IsNumber()
+  tenantId?: number
 }
 
 export class UpdateUserDto {
@@ -125,6 +164,18 @@ export class UserDto {
     example: 1,
   })
   tenantId!: number
+
+  @ApiPropertyOptional({
+    description: 'Tenant name',
+    example: 'Acme Corporation',
+  })
+  tenantName?: string
+
+  @ApiPropertyOptional({
+    description: 'Tenant code',
+    example: 'TNT-000001',
+  })
+  tenantCode?: string
 
   @ApiProperty({
     description: 'User email address',
