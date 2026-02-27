@@ -10,6 +10,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 import { ValidationPipe } from './common/pipes/validation.pipe'
+import { RolesGuard } from './common/guards/roles.guard'
+import { AbilityFactory } from './common/casl'
 
 @Module({
   imports: [
@@ -54,6 +56,11 @@ import { ValidationPipe } from './common/pipes/validation.pipe'
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    AbilityFactory,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

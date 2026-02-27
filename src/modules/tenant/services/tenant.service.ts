@@ -36,9 +36,18 @@ export class TenantService extends BaseService<
 
     const offset = this.calculateOffset(normalized.page, normalized.limit)
 
-    const where: Prisma.TenantWhereInput = this.buildSearchFilter(
-      normalized.search,
-    )
+    const searchFilter = this.buildSearchFilter(normalized.search)
+    const viewerScope: Prisma.TenantWhereInput =
+      auditContext.role === 'viewer'
+        ? {
+            id: auditContext.tenantId ?? -1,
+          }
+        : {}
+
+    const where: Prisma.TenantWhereInput = {
+      ...viewerScope,
+      ...(searchFilter ?? {}),
+    }
 
     const [data, total] = await Promise.all([
       this.prisma.tenant.findMany({
@@ -63,6 +72,11 @@ export class TenantService extends BaseService<
    */
   async findOne(id: number, auditContext: AuditContext): Promise<TenantDto> {
     this.logWithContext('log', `Fetching tenant ${id}`, auditContext)
+
+    if (auditContext.role === 'viewer' && auditContext.tenantId !== id) {
+      this.logWithContext('warn', `Tenant ${id} not found`, auditContext)
+      throw new NotFoundException(`Tenant with ID ${id} not found`)
+    }
 
     const tenant = await this.prisma.tenant.findUnique({
       where: { id },

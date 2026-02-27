@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsBoolean,
+  IsDefined,
   IsEmail,
   IsIn,
   IsNumber,
@@ -8,6 +9,7 @@ import {
   IsString,
   IsStrongPassword,
   Length,
+  ValidateIf,
 } from 'class-validator'
 import type { Role } from '@src/common/types'
 
@@ -100,7 +102,8 @@ export class CreateUserDto {
     description: 'Tenant ID to assign user to (optional for superadmin)',
     example: 1,
   })
-  @IsOptional()
+  @ValidateIf((dto: CreateUserDto) => (dto.role ?? 'viewer') !== 'superadmin')
+  @IsDefined()
   @IsNumber()
   tenantId?: number
 }
@@ -155,6 +158,18 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  @ApiPropertyOptional({
+    description:
+      'Tenant ID to assign user to (required if role is not superadmin)',
+    example: 1,
+  })
+  @ValidateIf(
+    (dto: UpdateUserDto) => dto.role !== undefined && dto.role !== 'superadmin',
+  )
+  @IsDefined()
+  @IsNumber()
+  tenantId?: number
 }
 
 export class UserDto {
