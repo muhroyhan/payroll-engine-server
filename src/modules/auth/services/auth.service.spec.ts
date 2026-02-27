@@ -434,9 +434,9 @@ describe('AuthService', () => {
     it('throws 401 when user is inactive', async () => {
       const { service } = makeService({ isActive: false })
 
-      await expect(
-        service.getCurrentUser(1),
-      ).rejects.toBeInstanceOf(UnauthorizedException)
+      await expect(service.getCurrentUser(1)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      )
     })
   })
 

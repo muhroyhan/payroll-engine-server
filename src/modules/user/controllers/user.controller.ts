@@ -5,13 +5,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  ParseIntPipe,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common'
 import {
   ApiBearerAuth,
@@ -21,7 +20,6 @@ import {
 } from '@nestjs/swagger'
 import type { AuthenticatedRequest } from '@src/common/types'
 
-import { JwtAuthGuard } from '@src/modules/auth/guards/jwt-auth.guard'
 import {
   PaginatedResponse,
   PaginationDto,
@@ -29,7 +27,6 @@ import {
 } from '@src/common/dto'
 import { buildAuditContext } from '@src/common/utils'
 import { Roles } from '@src/common/decorators/roles.decorator'
-import { RolesGuard } from '@src/common/guards/roles.guard'
 import { UserService } from '../services'
 import {
   CreateUserDto,
@@ -41,7 +38,6 @@ import {
 
 @ApiTags('User Management')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('users')
 export class UserController {
   constructor(private userService: UserService) {}

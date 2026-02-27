@@ -9,6 +9,7 @@ import * as bcrypt from 'bcrypt'
 import { BaseService } from '@src/common/services'
 import { PaginatedResponse, PaginationDto } from '@src/common/dto'
 import type { AuditContext } from '@src/common/types'
+import { AbilityFactory } from '@src/common/casl'
 import { PrismaService } from '@src/database/prisma.service'
 import { AUTH_CONFIG } from '@src/modules/auth/auth.config'
 import {
@@ -24,7 +25,10 @@ export class UserService extends BaseService<
   CreateUserDto,
   UpdateUserDto
 > {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private abilityFactory: AbilityFactory,
+  ) {
     super(UserService.name)
   }
 
@@ -38,8 +42,9 @@ export class UserService extends BaseService<
     const offset = this.calculateOffset(normalized.page, normalized.limit)
 
     const searchFilter = this.buildSearchFilter(normalized.search)
+    const scopeFilter = this.abilityFactory.buildUserWhere(auditContext, 'read')
     const where: Prisma.UserWhereInput = {
-      ...(this.getTenantScopeFilter(auditContext) ?? {}),
+      ...(scopeFilter ?? {}),
       ...(searchFilter ?? {}),
     }
 
@@ -48,7 +53,14 @@ export class UserService extends BaseService<
         where,
         skip: offset,
         take: normalized.limit,
-        orderBy: this.buildSortConfig(normalized.sortBy, normalized.sortOrder),
+        orderBy: this.buildSortConfig(normalized.sortBy, normalized.sortOrder, [
+          'id',
+          'fullName',
+          'email',
+          'role',
+          'isActive',
+          'createdAt',
+        ]),
         include: {
           tenant: {
             select: {
@@ -95,7 +107,7 @@ export class UserService extends BaseService<
   async findOne(id: number, auditContext: AuditContext): Promise<UserDto> {
     this.logWithContext('log', `Fetching user ${id}`, auditContext)
 
-    const tenantScope = this.getTenantScopeFilter(auditContext)
+    const tenantScope = this.abilityFactory.buildUserWhere(auditContext, 'read')
     const user = await this.prisma.user.findFirst({
       where: {
         id,
@@ -134,10 +146,19 @@ export class UserService extends BaseService<
 
     this.logWithContext('log', `Creating user ${normalizedEmail}`, auditContext)
 
+    const actorManagedTenantId =
+      this.abilityFactory.resolveManagedTenantId(auditContext)
+
+    if (auditContext.role !== 'superadmin') {
+      if (createDto.tenantId !== actorManagedTenantId) {
+        throw new BadRequestException('tenantId must match your tenant context')
+      }
+    }
+
     const tenantId =
       auditContext.role === 'superadmin'
         ? (createDto.tenantId ?? null)
-        : this.requireTenantId(auditContext)
+        : actorManagedTenantId
 
     const user = await this.prisma.user.create({
       data: {
@@ -162,7 +183,10 @@ export class UserService extends BaseService<
   ): Promise<UserDto> {
     this.logWithContext('log', `Updating user ${id}`, auditContext)
 
-    const tenantScope = this.getTenantScopeFilter(auditContext)
+    const tenantScope = this.abilityFactory.buildUserWhere(
+      auditContext,
+      'manage',
+    )
     const existing = await this.prisma.user.findFirst({
       where: {
         id,
@@ -174,7 +198,7 @@ export class UserService extends BaseService<
       throw new NotFoundException(`User with ID ${id} not found`)
     }
 
-    const data: Prisma.UserUpdateInput = {
+    const data: Prisma.UserUncheckedUpdateInput = {
       updatedBy: auditContext.userFullName,
     }
 
@@ -204,6 +228,28 @@ export class UserService extends BaseService<
     if (updateDto.role !== undefined) data.role = updateDto.role
     if (updateDto.isActive !== undefined) data.isActive = updateDto.isActive
 
+    const actorManagedTenantId =
+      this.abilityFactory.resolveManagedTenantId(auditContext)
+
+    if (updateDto.tenantId !== undefined) {
+      if (
+        auditContext.role !== 'superadmin' &&
+        updateDto.tenantId !== actorManagedTenantId
+      ) {
+        throw new BadRequestException('tenantId must match your tenant context')
+      }
+
+      data.tenantId = updateDto.tenantId
+    }
+
+    if (
+      auditContext.role === 'superadmin' &&
+      updateDto.role === 'superadmin' &&
+      updateDto.tenantId === undefined
+    ) {
+      data.tenantId = null
+    }
+
     const updated = await this.prisma.user.update({
       where: { id },
       data,
@@ -215,7 +261,10 @@ export class UserService extends BaseService<
   async delete(id: number, auditContext: AuditContext): Promise<void> {
     this.logWithContext('log', `Deleting user ${id}`, auditContext)
 
-    const tenantScope = this.getTenantScopeFilter(auditContext)
+    const tenantScope = this.abilityFactory.buildUserWhere(
+      auditContext,
+      'manage',
+    )
     const existing = await this.prisma.user.findFirst({
       where: {
         id,
@@ -227,10 +276,10 @@ export class UserService extends BaseService<
       throw new NotFoundException(`User with ID ${id} not found`)
     }
 
+    const managedTenantId =
+      this.abilityFactory.resolveManagedTenantId(auditContext)
     const relationTenantFilter =
-      auditContext.role === 'superadmin'
-        ? {}
-        : { tenantId: this.requireTenantId(auditContext) }
+      managedTenantId === null ? {} : { tenantId: managedTenantId }
 
     const [auditLogsCount, payslipRunsCount] = await Promise.all([
       this.prisma.auditLogs.count({
@@ -273,24 +322,6 @@ export class UserService extends BaseService<
         { email: { contains: query, mode: 'insensitive' } },
       ],
     }
-  }
-
-  private getTenantScopeFilter(
-    auditContext: AuditContext,
-  ): Prisma.UserWhereInput | null {
-    if (auditContext.role === 'superadmin') {
-      return null
-    }
-
-    return { tenantId: this.requireTenantId(auditContext) }
-  }
-
-  private requireTenantId(auditContext: AuditContext): number {
-    if (auditContext.tenantId === null) {
-      throw new BadRequestException('Tenant context is required')
-    }
-
-    return auditContext.tenantId
   }
 
   private toDto(

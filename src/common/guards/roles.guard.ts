@@ -12,12 +12,11 @@ import type { AuthUser } from '@src/common/types/auth-user.type'
 import { AbilityFactory } from '@src/common/casl'
 
 /**
- * Role-based Authorization Guard.
- * Apply per-route with @Roles() decorator — routes without @Roles() pass through.
- * Must be used AFTER JwtAuthGuard (which populates request.user).
+ * Role and ability based authorization guard.
+ * Registered globally and evaluates CASL action permissions first.
+ * For non-superadmin/viewer roles, it also enforces @Roles() decorator constraints.
  *
  * @example
- * @UseGuards(RolesGuard)
  * @Roles('tenant_admin')
  * @Get('admin-only')
  * getAdminData() {}

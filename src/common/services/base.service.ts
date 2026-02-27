@@ -132,10 +132,23 @@ export abstract class BaseService<T, CreateDto = any, UpdateDto = any> {
    *
    * @param sortBy - Field to sort by
    * @param sortOrder - Sort order (asc/desc)
+   * @param allowedSortFields - Optional allowlist of sort fields
    * @returns Sort configuration
    */
-  protected buildSortConfig(sortBy?: string, sortOrder?: 'asc' | 'desc'): any {
+  protected buildSortConfig(
+    sortBy?: string,
+    sortOrder?: 'asc' | 'desc',
+    allowedSortFields?: string[],
+  ): any {
     if (!sortBy) return { createdAt: 'desc' }
+
+    if (
+      Array.isArray(allowedSortFields) &&
+      !allowedSortFields.includes(sortBy)
+    ) {
+      return { createdAt: 'desc' }
+    }
+
     return { [sortBy]: sortOrder || 'desc' }
   }
 

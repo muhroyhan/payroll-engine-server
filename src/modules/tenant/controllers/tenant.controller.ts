@@ -5,13 +5,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  ParseIntPipe,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
   Req,
-  UseGuards,
 } from '@nestjs/common'
 import {
   ApiBearerAuth,
@@ -20,8 +19,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger'
 import type { AuthenticatedRequest } from '@src/common/types'
-
-import { JwtAuthGuard } from '@src/modules/auth/guards/jwt-auth.guard'
 import {
   PaginatedResponse,
   PaginationDto,
@@ -32,6 +29,7 @@ import { TenantService } from '../services'
 import { CreateTenantDto, TenantDto, UpdateTenantDto } from '../dto'
 
 @ApiTags('Tenant Management')
+@ApiBearerAuth()
 @Controller('tenants')
 export class TenantController {
   constructor(private tenantService: TenantService) {}
@@ -41,11 +39,10 @@ export class TenantController {
    * Requires authentication
    */
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'List all tenants',
-    description: 'Get paginated list of all tenants. Admin only.',
+    description:
+      'Get paginated tenants. Superadmin can view all tenants; viewer is scoped to own tenant.',
   })
   @ApiResponse({
     status: 200,
@@ -68,11 +65,10 @@ export class TenantController {
    * Get single tenant by ID
    */
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get tenant by ID',
-    description: 'Retrieve a single tenant information',
+    description:
+      'Retrieve tenant information. Viewer can only access their own tenant.',
   })
   @ApiResponse({
     status: 200,
@@ -101,12 +97,10 @@ export class TenantController {
    * Create new tenant
    */
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create new tenant',
-    description: 'Create a new tenant organization',
+    description: 'Create a new tenant organization (superadmin only)',
   })
   @ApiResponse({
     status: 201,
@@ -135,11 +129,9 @@ export class TenantController {
    * Update tenant
    */
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Update tenant',
-    description: 'Update tenant information',
+    description: 'Update tenant information within allowed scope',
   })
   @ApiResponse({
     status: 200,
@@ -169,12 +161,10 @@ export class TenantController {
    * Delete tenant
    */
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete tenant',
-    description: 'Delete a tenant and all related data',
+    description: 'Delete a tenant and all related data within allowed scope',
   })
   @ApiResponse({
     status: 204,
@@ -200,8 +190,6 @@ export class TenantController {
    * Get tenant statistics
    */
   @Get(':id/stats')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get tenant statistics',
     description:

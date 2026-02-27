@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
@@ -8,6 +9,7 @@ import { Prisma, Tenant } from '@prismaclient/client'
 import { BaseService } from '@src/common/services'
 import { PaginatedResponse, PaginationDto } from '@src/common/dto'
 import { AuditContext } from '@src/common/types'
+import { AbilityFactory } from '@src/common/casl'
 import { PrismaService } from '@src/database/prisma.service'
 import { CreateTenantDto, TenantDto, UpdateTenantDto } from '../dto'
 
@@ -17,7 +19,10 @@ export class TenantService extends BaseService<
   CreateTenantDto,
   UpdateTenantDto
 > {
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private abilityFactory: AbilityFactory,
+  ) {
     super(TenantService.name)
   }
 
@@ -37,15 +42,13 @@ export class TenantService extends BaseService<
     const offset = this.calculateOffset(normalized.page, normalized.limit)
 
     const searchFilter = this.buildSearchFilter(normalized.search)
-    const viewerScope: Prisma.TenantWhereInput =
-      auditContext.role === 'viewer'
-        ? {
-            id: auditContext.tenantId ?? -1,
-          }
-        : {}
+    const scopeFilter = this.abilityFactory.buildTenantWhere(
+      auditContext,
+      'read',
+    )
 
     const where: Prisma.TenantWhereInput = {
-      ...viewerScope,
+      ...(scopeFilter ?? {}),
       ...(searchFilter ?? {}),
     }
 
@@ -54,7 +57,12 @@ export class TenantService extends BaseService<
         where,
         skip: offset,
         take: normalized.limit,
-        orderBy: this.buildSortConfig(normalized.sortBy, normalized.sortOrder),
+        orderBy: this.buildSortConfig(normalized.sortBy, normalized.sortOrder, [
+          'id',
+          'name',
+          'code',
+          'createdAt',
+        ]),
       }),
       this.prisma.tenant.count({ where }),
     ])
@@ -73,13 +81,16 @@ export class TenantService extends BaseService<
   async findOne(id: number, auditContext: AuditContext): Promise<TenantDto> {
     this.logWithContext('log', `Fetching tenant ${id}`, auditContext)
 
-    if (auditContext.role === 'viewer' && auditContext.tenantId !== id) {
-      this.logWithContext('warn', `Tenant ${id} not found`, auditContext)
-      throw new NotFoundException(`Tenant with ID ${id} not found`)
-    }
+    const scopeFilter = this.abilityFactory.buildTenantWhere(
+      auditContext,
+      'read',
+    )
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id },
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        id,
+        ...(scopeFilter ?? {}),
+      },
     })
 
     if (!tenant) {
@@ -116,6 +127,10 @@ export class TenantService extends BaseService<
     createDto: CreateTenantDto,
     auditContext: AuditContext,
   ): Promise<TenantDto> {
+    if (auditContext.role !== 'superadmin') {
+      throw new ForbiddenException('Only superadmin can create tenant')
+    }
+
     // Generate tenant code: TNT-{next increment number}
     const totalTenants = await this.prisma.tenant.count()
     const code = `TNT-${String(totalTenants + 1).padStart(6, '0')}`
@@ -154,8 +169,16 @@ export class TenantService extends BaseService<
   ): Promise<TenantDto> {
     this.logWithContext('log', `Updating tenant ${id}`, auditContext)
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id },
+    const scopeFilter = this.abilityFactory.buildTenantWhere(
+      auditContext,
+      'manage',
+    )
+
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        id,
+        ...(scopeFilter ?? {}),
+      },
     })
 
     if (!tenant) {
@@ -194,8 +217,16 @@ export class TenantService extends BaseService<
   async delete(id: number, auditContext: AuditContext): Promise<void> {
     this.logWithContext('log', `Deleting tenant ${id}`, auditContext)
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id },
+    const scopeFilter = this.abilityFactory.buildTenantWhere(
+      auditContext,
+      'manage',
+    )
+
+    const tenant = await this.prisma.tenant.findFirst({
+      where: {
+        id,
+        ...(scopeFilter ?? {}),
+      },
     })
 
     if (!tenant) {

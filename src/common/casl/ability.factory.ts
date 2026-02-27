@@ -1,15 +1,27 @@
-import { AbilityBuilder, createMongoAbility, MongoAbility } from '@casl/ability'
+import {
+  AbilityBuilder,
+  AnyMongoAbility,
+  createMongoAbility,
+} from '@casl/ability'
 import { Injectable } from '@nestjs/common'
+import { Prisma } from '@prismaclient/client'
 import type { AuthUser } from '@src/common/types'
+import type { AuditContext } from '@src/common/types'
 
 export type AppAction = 'manage' | 'read'
 export type AppSubject = 'all'
-export type AppAbility = MongoAbility<[AppAction, AppSubject]>
+export type AppAbility = AnyMongoAbility
+export type ScopeSubject = 'User' | 'Tenant'
+export type ScopeAbility = AnyMongoAbility
+
+type AccessContext = Pick<AuthUser, 'role' | 'tenantId'> | AuditContext
 
 @Injectable()
 export class AbilityFactory {
   createForUser(user: AuthUser): AppAbility {
-    const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility)
+    const { can, build } = new AbilityBuilder<AnyMongoAbility>(
+      createMongoAbility,
+    )
 
     if (user.role === 'superadmin') {
       can('manage', 'all')
@@ -25,5 +37,91 @@ export class AbilityFactory {
     can('read', 'all')
 
     return build()
+  }
+
+  createScopeForContext(context: AccessContext): ScopeAbility {
+    const { can, build } = new AbilityBuilder<AnyMongoAbility>(
+      createMongoAbility,
+    )
+
+    if (context.role === 'superadmin') {
+      can('manage', 'User')
+      can('manage', 'Tenant')
+      return build()
+    }
+
+    if (context.tenantId === null) {
+      return build()
+    }
+
+    if (context.role === 'viewer') {
+      can('read', 'User', { tenantId: context.tenantId })
+      can('read', 'Tenant', { id: context.tenantId })
+      return build()
+    }
+
+    can('manage', 'User', { tenantId: context.tenantId })
+    can('manage', 'Tenant', { id: context.tenantId })
+    return build()
+  }
+
+  buildUserWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.UserWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'User',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1) return conditions[0] as Prisma.UserWhereInput
+
+    return { OR: conditions as Prisma.UserWhereInput[] }
+  }
+
+  buildTenantWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.TenantWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'Tenant',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1) return conditions[0] as Prisma.TenantWhereInput
+
+    return { OR: conditions as Prisma.TenantWhereInput[] }
+  }
+
+  resolveManagedTenantId(context: AccessContext): number | null {
+    const where = this.buildTenantWhere(context, 'manage')
+    if (where === null) return null
+
+    if (typeof where.id === 'number') {
+      return where.id
+    }
+
+    return null
+  }
+
+  private getConditions(
+    ability: ScopeAbility,
+    action: AppAction,
+    subject: ScopeSubject,
+  ): Array<Record<string, unknown>> | null {
+    const rules = ability
+      .rulesFor(action, subject)
+      .filter((rule) => !rule.inverted)
+
+    if (rules.length === 0) return []
+    if (rules.some((rule) => !rule.conditions)) return null
+
+    return rules.map((rule) => rule.conditions as Record<string, unknown>)
   }
 }
