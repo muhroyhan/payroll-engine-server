@@ -72,28 +72,38 @@ src/
 │       └── responses/
 │
 └── modules/
-    └── auth/                   # Auth feature module
-        ├── auth.config.ts      # AUTH_CONFIG: JWT expiry, bcrypt rounds, throttle limits
-        ├── auth.module.ts      # AuthModule wiring
+    ├── auth/                   # Auth feature module
+    │   ├── auth.config.ts      # AUTH_CONFIG: JWT expiry, bcrypt rounds, throttle limits
+    │   ├── auth.module.ts      # AuthModule wiring
+    │   ├── controllers/
+    │   │   ├── auth.controller.ts      # POST /auth/login, /auth/refresh, /auth/logout, GET /auth/me
+    │   │   └── index.ts
+    │   ├── decorators/
+    │   │   └── throttle-by-email.decorator.ts  # @ThrottleByEmail() metadata decorator
+    │   ├── dto/
+    │   │   ├── login.dto.ts            # { email, password }
+    │   │   └── refresh.dto.ts          # { refreshToken }
+    │   ├── guards/
+    │   │   ├── email-throttler.guard.ts    # Per-email failed login rate limiter (5 fails / 15min)
+    │   │   └── jwt-auth.guard.ts           # Global JWT guard — skips @Public() routes
+    │   ├── services/
+    │   │   ├── auth.service.ts         # Core auth logic: validate, login, refresh, logout
+    │   │   └── index.ts
+    │   ├── strategies/
+    │   │   └── jwt.strategy.ts         # Passport JWT strategy — validates Bearer token
+    │   └── types/
+    │       ├── jwt-payload.type.ts     # JWT payload shape { sub, email, role, tenantId } + jti (refresh only)
+    │       └── login-response.type.ts  # LoginResponse & SafeUser shapes
+    ├── tenant/                 # Tenant management module
+    │   ├── tenant.module.ts
+    │   ├── controllers/
+    │   ├── dto/
+    │   └── services/
+    └── user/                   # User management module (tenant-scoped)
+        ├── user.module.ts
         ├── controllers/
-        │   ├── auth.controller.ts      # POST /auth/login, /auth/refresh, /auth/logout, GET /auth/me
-        │   └── index.ts
-        ├── decorators/
-        │   └── throttle-by-email.decorator.ts  # @ThrottleByEmail() metadata decorator
         ├── dto/
-        │   ├── login.dto.ts            # { email, password }
-        │   └── refresh.dto.ts          # { refreshToken }
-        ├── guards/
-        │   ├── email-throttler.guard.ts    # Per-email failed login rate limiter (5 fails / 15min)
-        │   └── jwt-auth.guard.ts           # Global JWT guard — skips @Public() routes
-        ├── services/
-        │   ├── auth.service.ts         # Core auth logic: validate, login, refresh, logout
-        │   └── index.ts
-        ├── strategies/
-        │   └── jwt.strategy.ts         # Passport JWT strategy — validates Bearer token
-        └── types/
-            ├── jwt-payload.type.ts     # JWT payload shape { sub, email, role, tenantId } + jti (refresh only)
-            └── login-response.type.ts  # LoginResponse & SafeUser shapes
+        └── services/
 ```
 
 ---

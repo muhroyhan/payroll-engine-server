@@ -107,7 +107,7 @@ export class AuthService {
    * (the JWT signature already guarantees integrity).
    */
   private async storeRefreshToken(
-    userId: string,
+    userId: number,
     refreshToken: string,
   ): Promise<void> {
     try {
@@ -182,10 +182,13 @@ export class AuthService {
     this.throttler.clearAttempts(user.email)
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     return {
       accessToken: tokens.accessToken,
@@ -242,10 +245,13 @@ export class AuthService {
     await this.storeRefreshToken(user.id, tokens.refreshToken)
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     this.logger.log(`Token refreshed for user: ${user.id}`)
     return {
@@ -261,7 +267,7 @@ export class AuthService {
    * - All existing tokens remain valid until expiration (especially access token at 15m)
    * Access tokens cannot be revoked without a blacklist (consider adding for longer expiry)
    */
-  async logout(userId: string): Promise<{ success: true }> {
+  async logout(userId: number): Promise<{ success: true }> {
     try {
       await this.prisma.user.update({
         where: { id: userId },
@@ -280,7 +286,7 @@ export class AuthService {
    * Get current user profile
    * Validates user exists and is active
    */
-  async getCurrentUser(userId: string): Promise<SafeUser> {
+  async getCurrentUser(userId: number): Promise<SafeUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     })
@@ -290,10 +296,13 @@ export class AuthService {
     }
 
     // Fetch tenant information for response
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenantId },
-      select: { name: true },
-    })
+    const tenant =
+      user.tenantId === null
+        ? null
+        : await this.prisma.tenant.findUnique({
+            where: { id: user.tenantId },
+            select: { name: true },
+          })
 
     return this.toSafeUser(user, tenant?.name)
   }
