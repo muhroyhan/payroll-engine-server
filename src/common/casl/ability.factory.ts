@@ -11,7 +11,7 @@ import type { AuditContext } from '@src/common/types'
 export type AppAction = 'manage' | 'read'
 export type AppSubject = 'all'
 export type AppAbility = AnyMongoAbility
-export type ScopeSubject = 'User' | 'Tenant' | 'Employee'
+export type ScopeSubject = 'User' | 'Tenant' | 'Employee' | 'SalaryComponent'
 export type ScopeAbility = AnyMongoAbility
 
 type AccessContext = Pick<AuthUser, 'role' | 'tenantId'> | AuditContext
@@ -48,6 +48,7 @@ export class AbilityFactory {
       can('manage', 'User')
       can('manage', 'Tenant')
       can('manage', 'Employee')
+      can('manage', 'SalaryComponent')
       return build()
     }
 
@@ -59,12 +60,14 @@ export class AbilityFactory {
       can('read', 'User', { tenantId: context.tenantId })
       can('read', 'Tenant', { id: context.tenantId })
       can('read', 'Employee', { tenantId: context.tenantId })
+      can('read', 'SalaryComponent', { tenantId: context.tenantId })
       return build()
     }
 
     can('manage', 'User', { tenantId: context.tenantId })
     can('manage', 'Tenant', { id: context.tenantId })
     can('manage', 'Employee', { tenantId: context.tenantId })
+    can('manage', 'SalaryComponent', { tenantId: context.tenantId })
     return build()
   }
 
@@ -118,6 +121,24 @@ export class AbilityFactory {
       return conditions[0] as Prisma.EmployeeWhereInput
 
     return { OR: conditions as Prisma.EmployeeWhereInput[] }
+  }
+
+  buildSalaryComponentWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.SalaryComponentWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'SalaryComponent',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1)
+      return conditions[0] as Prisma.SalaryComponentWhereInput
+
+    return { OR: conditions as Prisma.SalaryComponentWhereInput[] }
   }
 
   resolveManagedTenantId(context: AccessContext): number | null {

@@ -7,6 +7,7 @@ import { AUTH_CONFIG } from './modules/auth/auth.config'
 import { TenantModule } from './modules/tenant'
 import { UserModule } from './modules/user'
 import { EmployeeModule } from './modules/employee'
+import { SalaryComponentModule } from './modules/salary-component'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
@@ -41,6 +42,7 @@ import { AbilityFactory } from '@src/common/casl'
     TenantModule,
     UserModule,
     EmployeeModule,
+    SalaryComponentModule,
   ],
   providers: [
     {

@@ -179,6 +179,79 @@ async function main() {
   })
   console.log(`Created employees: ${employeeResult.count}`)
 
+  const salaryComponentData = [
+    {
+      tenantId: tenant.id,
+      name: 'Transport Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 750000,
+      isTaxable: false,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      name: 'Meal Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 500000,
+      isTaxable: false,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      name: 'Attendance Bonus',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 5,
+      isTaxable: true,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      name: 'BPJS Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 2,
+      isTaxable: false,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      name: 'Loan Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 300000,
+      isTaxable: false,
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+  ]
+
+  const salaryComponentResult = await prisma.salaryComponent.createMany({
+    data: salaryComponentData,
+  })
+  console.log(`Created salary components: ${salaryComponentResult.count}`)
+
   console.log(`Seeding finished.`)
 }
 
