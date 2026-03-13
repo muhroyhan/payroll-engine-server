@@ -141,13 +141,26 @@ export class TenantService extends BaseService<
       auditContext,
     )
 
-    const tenant = await this.prisma.tenant.create({
-      data: {
-        name: createDto.name,
-        code,
-        createdBy: auditContext.userFullName,
-        updatedBy: auditContext.userFullName,
-      },
+    const tenant = await this.prisma.$transaction(async (tx) => {
+      const createdTenant = await tx.tenant.create({
+        data: {
+          name: createDto.name,
+          code,
+          createdBy: auditContext.userFullName,
+          updatedBy: auditContext.userFullName,
+        },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'CREATE',
+        entity: 'Tenant',
+        entityId: createdTenant.id,
+        tenantId: createdTenant.id,
+        auditContext,
+        afterData: createdTenant as unknown as Record<string, unknown>,
+      })
+
+      return createdTenant
     })
 
     this.logWithContext(
@@ -190,12 +203,26 @@ export class TenantService extends BaseService<
       throw new NotFoundException(`Tenant with ID ${id} not found`)
     }
 
-    const updated = await this.prisma.tenant.update({
-      where: { id },
-      data: {
-        ...updateDto,
-        updatedBy: auditContext.userFullName,
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedTenant = await tx.tenant.update({
+        where: { id },
+        data: {
+          ...updateDto,
+          updatedBy: auditContext.userFullName,
+        },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'UPDATE',
+        entity: 'Tenant',
+        entityId: id,
+        tenantId: id,
+        auditContext,
+        beforeData: tenant as unknown as Record<string, unknown>,
+        afterData: updatedTenant as unknown as Record<string, unknown>,
+      })
+
+      return updatedTenant
     })
 
     this.logWithContext(
@@ -280,8 +307,19 @@ export class TenantService extends BaseService<
       throw new BadRequestException(message)
     }
 
-    await this.prisma.tenant.delete({
-      where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tenant.delete({
+        where: { id },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'DELETE',
+        entity: 'Tenant',
+        entityId: id,
+        tenantId: id,
+        auditContext,
+        beforeData: tenant as unknown as Record<string, unknown>,
+      })
     })
 
     this.logWithContext(
