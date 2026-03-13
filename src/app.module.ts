@@ -11,7 +11,7 @@ import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 import { ValidationPipe } from './common/pipes/validation.pipe'
 import { RolesGuard } from './common/guards/roles.guard'
-import { AbilityFactory } from './common/casl'
+import { AbilityFactory } from '@src/common/casl'
 
 @Module({
   imports: [

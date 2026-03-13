@@ -4,7 +4,7 @@ import {
   createMongoAbility,
 } from '@casl/ability'
 import { Injectable } from '@nestjs/common'
-import { Prisma } from '@prismaclient/client'
+import type { Prisma } from '@prismaclient/client'
 import type { AuthUser } from '@src/common/types'
 import type { AuditContext } from '@src/common/types'
 
@@ -115,13 +115,20 @@ export class AbilityFactory {
     action: AppAction,
     subject: ScopeSubject,
   ): Array<Record<string, unknown>> | null {
-    const rules = ability
+    type RuleCondition = {
+      inverted?: boolean
+      conditions?: Record<string, unknown>
+    }
+
+    const rules: RuleCondition[] = ability
       .rulesFor(action, subject)
-      .filter((rule) => !rule.inverted)
+      .filter((rule: RuleCondition) => !rule.inverted)
 
     if (rules.length === 0) return []
-    if (rules.some((rule) => !rule.conditions)) return null
+    if (rules.some((rule: RuleCondition) => !rule.conditions)) return null
 
-    return rules.map((rule) => rule.conditions as Record<string, unknown>)
+    return rules.map(
+      (rule: RuleCondition) => rule.conditions as Record<string, unknown>,
+    )
   }
 }
