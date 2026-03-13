@@ -100,6 +100,85 @@ async function main() {
     const user = await prisma.user.create({ data: u })
     console.log(`Created user with id: ${user.id}`)
   }
+
+  const employeeData = [
+    {
+      tenantId: tenant.id,
+      employeeCode: 'EMP-000001',
+      fullName: 'Budi Santoso',
+      position: 'HR Staff',
+      employeeType: $Enums.EmployeeType.permanent,
+      baseSalary: 8500000,
+      joinDate: new Date('2024-01-15T00:00:00.000Z'),
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      employeeCode: 'EMP-000002',
+      fullName: 'Siti Rahmawati',
+      position: 'Finance Officer',
+      employeeType: $Enums.EmployeeType.permanent,
+      baseSalary: 9500000,
+      joinDate: new Date('2024-03-01T00:00:00.000Z'),
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      employeeCode: 'EMP-000003',
+      fullName: 'Andi Pratama',
+      position: 'Payroll Analyst',
+      employeeType: $Enums.EmployeeType.contract,
+      baseSalary: 7800000,
+      joinDate: new Date('2024-06-10T00:00:00.000Z'),
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      employeeCode: 'EMP-000004',
+      fullName: 'Dewi Lestari',
+      position: 'Accountant',
+      employeeType: $Enums.EmployeeType.permanent,
+      baseSalary: 10250000,
+      joinDate: new Date('2023-11-20T00:00:00.000Z'),
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+    {
+      tenantId: tenant.id,
+      employeeCode: 'EMP-000005',
+      fullName: 'Rizky Hidayat',
+      position: 'Operations Admin',
+      employeeType: $Enums.EmployeeType.contract,
+      baseSalary: 7000000,
+      joinDate: new Date('2025-01-05T00:00:00.000Z'),
+      isActive: true,
+      createdAt: new Date(),
+      createdBy: 'seeder',
+      updatedAt: new Date(),
+      updatedBy: 'seeder',
+    },
+  ]
+
+  const employeeResult = await prisma.employee.createMany({
+    data: employeeData,
+  })
+  console.log(`Created employees: ${employeeResult.count}`)
+
   console.log(`Seeding finished.`)
 }
 

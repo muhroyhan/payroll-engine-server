@@ -160,17 +160,33 @@ export class UserService extends BaseService<
         ? (createDto.tenantId ?? null)
         : actorManagedTenantId
 
-    const user = await this.prisma.user.create({
-      data: {
-        tenantId,
-        email: normalizedEmail,
-        fullName: createDto.fullName,
-        password,
-        role: createDto.role ?? 'viewer',
-        isActive: createDto.isActive ?? true,
-        createdBy: auditContext.userFullName,
-        updatedBy: auditContext.userFullName,
-      },
+    const user = await this.prisma.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          tenantId,
+          email: normalizedEmail,
+          fullName: createDto.fullName,
+          password,
+          role: createDto.role ?? 'viewer',
+          isActive: createDto.isActive ?? true,
+          createdBy: auditContext.userFullName,
+          updatedBy: auditContext.userFullName,
+        },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'CREATE',
+        entity: 'User',
+        entityId: createdUser.id,
+        tenantId: createdUser.tenantId,
+        auditContext,
+        afterData: this.omitAuditFields(
+          createdUser as unknown as Record<string, unknown>,
+          ['password', 'refreshToken'],
+        ),
+      })
+
+      return createdUser
     })
 
     return this.toDto(user)
@@ -250,9 +266,29 @@ export class UserService extends BaseService<
       data.tenantId = null
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id },
-      data,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: { id },
+        data,
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'UPDATE',
+        entity: 'User',
+        entityId: id,
+        tenantId: updatedUser.tenantId,
+        auditContext,
+        beforeData: this.omitAuditFields(
+          existing as unknown as Record<string, unknown>,
+          ['password', 'refreshToken'],
+        ),
+        afterData: this.omitAuditFields(
+          updatedUser as unknown as Record<string, unknown>,
+          ['password', 'refreshToken'],
+        ),
+      })
+
+      return updatedUser
     })
 
     return this.toDto(updated)
@@ -308,8 +344,22 @@ export class UserService extends BaseService<
       throw new BadRequestException(message)
     }
 
-    await this.prisma.user.delete({
-      where: { id },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.delete({
+        where: { id },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'DELETE',
+        entity: 'User',
+        entityId: id,
+        tenantId: existing.tenantId,
+        auditContext,
+        beforeData: this.omitAuditFields(
+          existing as unknown as Record<string, unknown>,
+          ['password', 'refreshToken'],
+        ),
+      })
     })
   }
 
