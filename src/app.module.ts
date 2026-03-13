@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
+import { PrismaModule } from '@src/database/prisma.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AUTH_CONFIG } from './modules/auth/auth.config'
 import { TenantModule } from './modules/tenant'
@@ -38,6 +39,7 @@ import { AbilityFactory } from '@src/common/casl'
         limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
       },
     ]),
+    PrismaModule,
     AuthModule,
     TenantModule,
     UserModule,

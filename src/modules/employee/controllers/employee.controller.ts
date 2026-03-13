@@ -27,7 +27,14 @@ import {
 import { buildAuditContext } from '@src/common/utils'
 import { Roles } from '@src/common/decorators/roles.decorator'
 import { EmployeeService } from '../services/employee.service'
-import { CreateEmployeeDto, EmployeeDto, UpdateEmployeeDto } from '../dto'
+import {
+  CreateEmployeeDto,
+  DeleteEmployeeDto,
+  EmployeeDto,
+  EmployeeSalaryComponentOptionDto,
+  EmployeeSalaryComponentOptionsQueryDto,
+  UpdateEmployeeDto,
+} from '../dto'
 
 @ApiTags('Employee Management')
 @ApiBearerAuth()
@@ -53,6 +60,34 @@ export class EmployeeController {
   ): Promise<PaginatedResponse<EmployeeDto>> {
     const auditContext = buildAuditContext(request, 'READ')
     return await this.employeeService.findAll(pagination, auditContext)
+  }
+
+  @Get('salary-component-options')
+  @Roles('tenant_admin', 'payroll_officer', 'viewer')
+  @ApiOperation({
+    summary: 'Get salary component options',
+    description:
+      'Get salary component options for employee salary component selection within current tenant scope',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Salary component options retrieved successfully',
+    type: SingleResponse,
+  })
+  async getSalaryComponentOptions(
+    @Query() query: EmployeeSalaryComponentOptionsQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<SingleResponse<EmployeeSalaryComponentOptionDto[]>> {
+    const auditContext = buildAuditContext(request, 'READ')
+    const data = await this.employeeService.findSalaryComponentOptions(
+      query.search,
+      query.includeInactive ?? false,
+      auditContext,
+    )
+    return new SingleResponse(
+      data,
+      'Salary component options retrieved successfully',
+    )
   }
 
   @Get(':id')
@@ -132,9 +167,10 @@ export class EmployeeController {
   })
   async delete(
     @Param('id', ParseIntPipe) id: number,
+    @Body() deleteDto: DeleteEmployeeDto,
     @Req() request: AuthenticatedRequest,
   ): Promise<void> {
     const auditContext = buildAuditContext(request, 'DELETE')
-    await this.employeeService.delete(id, auditContext)
+    await this.employeeService.delete(id, auditContext, deleteDto)
   }
 }
