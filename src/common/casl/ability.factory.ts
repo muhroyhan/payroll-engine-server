@@ -11,7 +11,14 @@ import type { AuditContext } from '@src/common/types'
 export type AppAction = 'manage' | 'read'
 export type AppSubject = 'all'
 export type AppAbility = AnyMongoAbility
-export type ScopeSubject = 'User' | 'Tenant' | 'Employee' | 'SalaryComponent'
+export type ScopeSubject =
+  | 'User'
+  | 'Tenant'
+  | 'Employee'
+  | 'SalaryComponent'
+  | 'PayslipPeriod'
+  | 'PayslipRun'
+  | 'Payslip'
 export type ScopeAbility = AnyMongoAbility
 
 type AccessContext = Pick<AuthUser, 'role' | 'tenantId'> | AuditContext
@@ -49,6 +56,9 @@ export class AbilityFactory {
       can('manage', 'Tenant')
       can('manage', 'Employee')
       can('manage', 'SalaryComponent')
+      can('manage', 'PayslipPeriod')
+      can('manage', 'PayslipRun')
+      can('manage', 'Payslip')
       return build()
     }
 
@@ -61,6 +71,9 @@ export class AbilityFactory {
       can('read', 'Tenant', { id: context.tenantId })
       can('read', 'Employee', { tenantId: context.tenantId })
       can('read', 'SalaryComponent', { tenantId: context.tenantId })
+      can('read', 'PayslipPeriod', { tenantId: context.tenantId })
+      can('read', 'PayslipRun', { tenantId: context.tenantId })
+      can('read', 'Payslip', { tenantId: context.tenantId })
       return build()
     }
 
@@ -68,6 +81,9 @@ export class AbilityFactory {
     can('manage', 'Tenant', { id: context.tenantId })
     can('manage', 'Employee', { tenantId: context.tenantId })
     can('manage', 'SalaryComponent', { tenantId: context.tenantId })
+    can('manage', 'PayslipPeriod', { tenantId: context.tenantId })
+    can('manage', 'PayslipRun', { tenantId: context.tenantId })
+    can('manage', 'Payslip', { tenantId: context.tenantId })
     return build()
   }
 
@@ -139,6 +155,59 @@ export class AbilityFactory {
       return conditions[0] as Prisma.SalaryComponentWhereInput
 
     return { OR: conditions as Prisma.SalaryComponentWhereInput[] }
+  }
+
+  buildPayslipPeriodWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.PayslipPeriodWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'PayslipPeriod',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1)
+      return conditions[0] as Prisma.PayslipPeriodWhereInput
+
+    return { OR: conditions as Prisma.PayslipPeriodWhereInput[] }
+  }
+
+  buildPayslipRunWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.PayslipRunWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'PayslipRun',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1)
+      return conditions[0] as Prisma.PayslipRunWhereInput
+
+    return { OR: conditions as Prisma.PayslipRunWhereInput[] }
+  }
+
+  buildPayslipWhere(
+    context: AccessContext,
+    action: AppAction,
+  ): Prisma.PayslipWhereInput | null {
+    const conditions = this.getConditions(
+      this.createScopeForContext(context),
+      action,
+      'Payslip',
+    )
+
+    if (conditions === null) return null
+    if (conditions.length === 0) return { id: -1 }
+    if (conditions.length === 1) return conditions[0] as Prisma.PayslipWhereInput
+
+    return { OR: conditions as Prisma.PayslipWhereInput[] }
   }
 
   resolveManagedTenantId(context: AccessContext): number | null {
