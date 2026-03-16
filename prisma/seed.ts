@@ -252,6 +252,146 @@ async function main() {
   })
   console.log(`Created salary components: ${salaryComponentResult.count}`)
 
+  const employees = await prisma.employee.findMany({
+    where: {
+      tenantId: tenant.id,
+    },
+    select: {
+      id: true,
+      employeeCode: true,
+    },
+  })
+
+  const employeeByCode = new Map(
+    employees.map((item) => [item.employeeCode, item]),
+  )
+
+  const employeeSalaryComponentData = [
+    {
+      employeeCode: 'EMP-000001',
+      name: 'Transport Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 750000,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000001',
+      name: 'BPJS Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 2,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000002',
+      name: 'Meal Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 500000,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000002',
+      name: 'Attendance Bonus',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 5,
+      isTaxable: true,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000003',
+      name: 'Transport Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 600000,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000003',
+      name: 'Loan Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 250000,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000004',
+      name: 'Attendance Bonus',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 7,
+      isTaxable: true,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000004',
+      name: 'BPJS Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.percentage,
+      defaultValue: 2,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000005',
+      name: 'Meal Allowance',
+      type: $Enums.SalaryType.allowance,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 400000,
+      isTaxable: false,
+      isActive: true,
+    },
+    {
+      employeeCode: 'EMP-000005',
+      name: 'Loan Deduction',
+      type: $Enums.SalaryType.deduction,
+      calculationType: $Enums.CalculationType.fixed,
+      defaultValue: 300000,
+      isTaxable: false,
+      isActive: true,
+    },
+  ]
+
+  const employeeSalaryComponentsToCreate = employeeSalaryComponentData.map(
+    (item) => {
+      const employee = employeeByCode.get(item.employeeCode)
+
+      if (!employee) {
+        throw new Error(`Employee not found for code ${item.employeeCode}`)
+      }
+
+      return {
+        employeeId: employee.id,
+        tenantId: tenant.id,
+        name: item.name,
+        type: item.type,
+        calculationType: item.calculationType,
+        defaultValue: item.defaultValue,
+        isTaxable: item.isTaxable,
+        isActive: item.isActive,
+        createdAt: new Date(),
+        createdBy: 'seeder',
+        updatedAt: new Date(),
+        updatedBy: 'seeder',
+      }
+    },
+  )
+
+  const employeeSalaryComponentResult =
+    await prisma.employeeSalaryComponent.createMany({
+      data: employeeSalaryComponentsToCreate,
+    })
+  console.log(
+    `Created employee salary components: ${employeeSalaryComponentResult.count}`,
+  )
+
   console.log(`Seeding finished.`)
 }
 
