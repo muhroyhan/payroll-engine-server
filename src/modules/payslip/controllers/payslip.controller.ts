@@ -151,7 +151,7 @@ export class PayslipController {
   @ApiOperation({
     summary: 'Process payroll for period',
     description:
-      'Generate a payroll run and payslips from active employee salary components for the selected draft period',
+      'Generate a payroll run and payslips from active employee salary components for the selected draft period, including optional BPJS and PPh21 statutory deductions based on regulation profile',
   })
   @ApiResponse({
     status: 201,

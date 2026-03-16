@@ -2,18 +2,50 @@ import { Type } from 'class-transformer'
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import {
   IsArray,
+  IsBoolean,
   IsDateString,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   Length,
+  ValidateNested,
 } from 'class-validator'
 
 const PAYSLIP_PERIOD_STATUSES = ['draft', 'processed', 'locked'] as const
 const SALARY_TYPES = ['allowance', 'deduction'] as const
+const PTKP_STATUSES = [
+  'TK0',
+  'TK1',
+  'TK2',
+  'TK3',
+  'K0',
+  'K1',
+  'K2',
+  'K3',
+] as const
 
 export type PayslipPeriodStatus = (typeof PAYSLIP_PERIOD_STATUSES)[number]
 export type SalaryType = (typeof SALARY_TYPES)[number]
+export type PtkpStatus = (typeof PTKP_STATUSES)[number]
+
+export class EmployeeTaxProfileInputDto {
+  @ApiProperty({
+    description: 'Employee ID that gets custom PTKP status',
+    example: 10,
+  })
+  @Type(() => Number)
+  @IsNumber()
+  employeeId!: number
+
+  @ApiProperty({
+    description: 'Employee PTKP status used for PPh21 annualized calculation',
+    enum: PTKP_STATUSES,
+    example: 'K0',
+  })
+  @IsIn(PTKP_STATUSES)
+  ptkpStatus!: PtkpStatus
+}
 
 export class CreatePayslipPeriodDto {
   @ApiProperty({
@@ -101,6 +133,48 @@ export class ProcessPayslipPeriodDto {
   @Type(() => Number)
   @IsNumber({}, { each: true })
   employeeIds?: number[]
+
+  @ApiPropertyOptional({
+    description:
+      'Apply statutory deductions (BPJS + PPh21) using effective-dated payroll regulation profile',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  applyStatutoryDeductions?: boolean
+
+  @ApiPropertyOptional({
+    description:
+      'Regulation profile code used for statutory calculations. Default is IDN_2026_BASE.',
+    example: 'IDN_2026_BASE',
+  })
+  @IsOptional()
+  @IsString()
+  regulationProfileCode?: string
+
+  @ApiPropertyOptional({
+    description:
+      'Default PTKP status applied when employee-specific profile is not provided',
+    enum: PTKP_STATUSES,
+    example: 'TK0',
+    default: 'TK0',
+  })
+  @IsOptional()
+  @IsIn(PTKP_STATUSES)
+  defaultPtkpStatus?: PtkpStatus
+
+  @ApiPropertyOptional({
+    description:
+      'Optional per-employee PTKP status override for annualized PPh21 calculation',
+    type: [EmployeeTaxProfileInputDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeTaxProfileInputDto)
+  employeeTaxProfiles?: EmployeeTaxProfileInputDto[]
 }
 
 export class PayslipListQueryDto {

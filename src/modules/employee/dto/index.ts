@@ -13,10 +13,21 @@ import {
 } from 'class-validator'
 
 const EMPLOYEE_TYPES = ['permanent', 'contract'] as const
+const PTKP_STATUSES = [
+  'TK0',
+  'TK1',
+  'TK2',
+  'TK3',
+  'K0',
+  'K1',
+  'K2',
+  'K3',
+] as const
 const SALARY_TYPES = ['allowance', 'deduction'] as const
 const CALCULATION_TYPES = ['fixed', 'percentage'] as const
 
 export type EmployeeType = (typeof EMPLOYEE_TYPES)[number]
+export type PtkpStatus = (typeof PTKP_STATUSES)[number]
 export type SalaryType = (typeof SALARY_TYPES)[number]
 export type CalculationType = (typeof CALCULATION_TYPES)[number]
 
@@ -385,6 +396,53 @@ export class CreateEmployeeDto {
   joinDate!: Date
 
   @ApiPropertyOptional({
+    description: 'PTKP status for PPh21 tax calculation',
+    enum: PTKP_STATUSES,
+    example: 'TK0',
+    default: 'TK0',
+  })
+  @IsOptional()
+  @IsIn(PTKP_STATUSES)
+  ptkpStatus?: PtkpStatus
+
+  @ApiPropertyOptional({
+    description: 'Whether employee has NPWP/NIK for tax identity',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasNpwp?: boolean
+
+  @ApiPropertyOptional({
+    description: 'Whether BPJS Kesehatan deduction applies to this employee',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBpjsKesehatanParticipant?: boolean
+
+  @ApiPropertyOptional({
+    description:
+      'Whether BPJS Ketenagakerjaan (JHT/JP) deductions apply to this employee',
+    example: true,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBpjsKetenagakerjaanParticipant?: boolean
+
+  @ApiPropertyOptional({
+    description: 'NPWP number (optional)',
+    example: '12.345.678.9-012.345',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(8, 32)
+  npwpNumber?: string
+
+  @ApiPropertyOptional({
     description: 'Whether employee is active',
     example: true,
   })
@@ -462,6 +520,49 @@ export class UpdateEmployeeDto {
   @Type(() => Date)
   @IsDate()
   joinDate?: Date
+
+  @ApiPropertyOptional({
+    description: 'PTKP status for PPh21 tax calculation',
+    enum: PTKP_STATUSES,
+    example: 'K0',
+  })
+  @IsOptional()
+  @IsIn(PTKP_STATUSES)
+  ptkpStatus?: PtkpStatus
+
+  @ApiPropertyOptional({
+    description: 'Whether employee has NPWP/NIK for tax identity',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  hasNpwp?: boolean
+
+  @ApiPropertyOptional({
+    description: 'Whether BPJS Kesehatan deduction applies to this employee',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBpjsKesehatanParticipant?: boolean
+
+  @ApiPropertyOptional({
+    description:
+      'Whether BPJS Ketenagakerjaan (JHT/JP) deductions apply to this employee',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isBpjsKetenagakerjaanParticipant?: boolean
+
+  @ApiPropertyOptional({
+    description: 'NPWP number (optional)',
+    example: '12.345.678.9-012.345',
+  })
+  @IsOptional()
+  @IsString()
+  @Length(8, 32)
+  npwpNumber?: string
 
   @ApiPropertyOptional({
     description: 'Whether employee is active',
@@ -558,6 +659,38 @@ export class EmployeeDto {
     example: '10000000.00',
   })
   baseSalary!: string
+
+  @ApiProperty({
+    description: 'PTKP status for PPh21 tax calculation',
+    enum: PTKP_STATUSES,
+    example: 'TK0',
+  })
+  ptkpStatus!: PtkpStatus
+
+  @ApiProperty({
+    description: 'Whether employee has NPWP/NIK for tax identity',
+    example: true,
+  })
+  hasNpwp!: boolean
+
+  @ApiProperty({
+    description: 'Whether BPJS Kesehatan deduction applies to this employee',
+    example: true,
+  })
+  isBpjsKesehatanParticipant!: boolean
+
+  @ApiProperty({
+    description:
+      'Whether BPJS Ketenagakerjaan (JHT/JP) deductions apply to this employee',
+    example: true,
+  })
+  isBpjsKetenagakerjaanParticipant!: boolean
+
+  @ApiPropertyOptional({
+    description: 'NPWP number',
+    example: '12.345.678.9-012.345',
+  })
+  npwpNumber?: string
 
   @ApiProperty({
     description: 'Join date',

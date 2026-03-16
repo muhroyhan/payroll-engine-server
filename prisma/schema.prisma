@@ -86,21 +86,37 @@ enum EmployeeType {
   contract
 }
 
+enum PtkpStatus {
+  TK0
+  TK1
+  TK2
+  TK3
+  K0
+  K1
+  K2
+  K3
+}
+
 model Employee {
-  id           Int          @id @default(autoincrement())
-  tenantId     Int
-  tenant       Tenant       @relation(fields: [tenantId], references: [id])
-  employeeCode String       @unique
-  fullName     String
-  position     String
-  employeeType EmployeeType @default(contract)
-  baseSalary   Decimal      @db.Decimal(15, 2)
-  joinDate     DateTime
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  createdBy    String
-  updatedAt    DateTime     @updatedAt
-  updatedBy    String
+  id                               Int          @id @default(autoincrement())
+  tenantId                         Int
+  tenant                           Tenant       @relation(fields: [tenantId], references: [id])
+  employeeCode                     String       @unique
+  fullName                         String
+  position                         String
+  employeeType                     EmployeeType @default(contract)
+  ptkpStatus                       PtkpStatus   @default(TK0)
+  hasNpwp                          Boolean      @default(true)
+  isBpjsKesehatanParticipant       Boolean      @default(true)
+  isBpjsKetenagakerjaanParticipant Boolean      @default(true)
+  npwpNumber                       String?
+  baseSalary                       Decimal      @db.Decimal(15, 2)
+  joinDate                         DateTime
+  isActive                         Boolean      @default(true)
+  createdAt                        DateTime     @default(now())
+  createdBy                        String
+  updatedAt                        DateTime     @updatedAt
+  updatedBy                        String
 
   employeeSalaryComponents EmployeeSalaryComponent[]
   payslips                 Payslip[]

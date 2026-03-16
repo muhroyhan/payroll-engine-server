@@ -16,12 +16,17 @@ import type { AuditContext } from '@src/common/types'
 import { AbilityFactory } from '@src/common/casl'
 import { PrismaService } from '@src/database/prisma.service'
 import {
+  PayrollRegulationProfile,
+  resolvePayrollRegulationProfile,
+} from '../constants'
+import {
   CreatePayslipPeriodDto,
   PayslipDto,
   PayslipListQueryDto,
   PayslipPeriodDto,
   PayslipRunDto,
   ProcessPayslipPeriodDto,
+  PtkpStatus,
   UpdatePayslipPeriodDto,
 } from '../dto'
 
@@ -351,6 +356,38 @@ export class PayslipService extends BaseService<
     )
 
     const requestedEmployeeIds = dto.employeeIds ?? []
+    const applyStatutoryDeductions = dto.applyStatutoryDeductions ?? true
+    const defaultPtkpStatus = dto.defaultPtkpStatus ?? 'TK0'
+    const employeeTaxProfileMap = new Map<number, PtkpStatus>()
+
+    if (dto.employeeTaxProfiles && dto.employeeTaxProfiles.length > 0) {
+      for (const item of dto.employeeTaxProfiles) {
+        if (employeeTaxProfileMap.has(item.employeeId)) {
+          throw new BadRequestException(
+            `Duplicate employee tax profile for employee ID ${item.employeeId}`,
+          )
+        }
+
+        employeeTaxProfileMap.set(item.employeeId, item.ptkpStatus)
+      }
+    }
+
+    let regulationProfile: PayrollRegulationProfile | null = null
+
+    if (applyStatutoryDeductions) {
+      try {
+        regulationProfile = resolvePayrollRegulationProfile(
+          dto.regulationProfileCode,
+          period.period_end,
+        )
+      } catch (error) {
+        throw new BadRequestException(
+          error instanceof Error
+            ? error.message
+            : 'Unable to resolve payroll regulation profile',
+        )
+      }
+    }
 
     const employees = await this.prisma.employee.findMany({
       where: {
@@ -418,6 +455,7 @@ export class PayslipService extends BaseService<
       for (const employee of employees) {
         let totalAllowance = new Prisma.Decimal(0)
         let employeeTotalDeduction = new Prisma.Decimal(0)
+        let taxableAllowance = new Prisma.Decimal(0)
 
         const items = employee.employeeSalaryComponents.map((component) => {
           const amount = this.calculateComponentAmount(
@@ -428,6 +466,10 @@ export class PayslipService extends BaseService<
 
           if (component.type === 'allowance') {
             totalAllowance = totalAllowance.plus(amount)
+
+            if (component.isTaxable) {
+              taxableAllowance = taxableAllowance.plus(amount)
+            }
           } else {
             employeeTotalDeduction = employeeTotalDeduction.plus(amount)
           }
@@ -441,8 +483,76 @@ export class PayslipService extends BaseService<
           }
         })
 
-        const grossSalary = employee.baseSalary.plus(totalAllowance)
-        const netSalary = grossSalary.minus(employeeTotalDeduction)
+        const grossSalary = this.roundCurrency(
+          employee.baseSalary.plus(totalAllowance),
+        )
+
+        if (applyStatutoryDeductions && regulationProfile) {
+          const ptkpStatus =
+            employeeTaxProfileMap.get(employee.id) ??
+            employee.ptkpStatus ??
+            defaultPtkpStatus
+
+          const statutoryDeductions = this.calculateStatutoryDeductions({
+            baseSalary: employee.baseSalary,
+            grossSalary,
+            taxableAllowance,
+            ptkpStatus,
+            hasNpwp: employee.hasNpwp,
+            isBpjsKesehatanParticipant: employee.isBpjsKesehatanParticipant,
+            isBpjsKetenagakerjaanParticipant:
+              employee.isBpjsKetenagakerjaanParticipant,
+            profile: regulationProfile,
+          })
+
+          if (statutoryDeductions.bpjsKesehatan.gt(0)) {
+            items.push({
+              componentName: 'BPJS Kesehatan (Employee)',
+              componentType: 'deduction',
+              amount: statutoryDeductions.bpjsKesehatan,
+              createdBy: auditContext.userFullName,
+              updatedBy: auditContext.userFullName,
+            })
+          }
+
+          if (statutoryDeductions.bpjsJht.gt(0)) {
+            items.push({
+              componentName: 'BPJS JHT (Employee)',
+              componentType: 'deduction',
+              amount: statutoryDeductions.bpjsJht,
+              createdBy: auditContext.userFullName,
+              updatedBy: auditContext.userFullName,
+            })
+          }
+
+          if (statutoryDeductions.bpjsJp.gt(0)) {
+            items.push({
+              componentName: 'BPJS JP (Employee)',
+              componentType: 'deduction',
+              amount: statutoryDeductions.bpjsJp,
+              createdBy: auditContext.userFullName,
+              updatedBy: auditContext.userFullName,
+            })
+          }
+
+          if (statutoryDeductions.pph21.gt(0)) {
+            items.push({
+              componentName: `PPh21 (${regulationProfile.code})`,
+              componentType: 'deduction',
+              amount: statutoryDeductions.pph21,
+              createdBy: auditContext.userFullName,
+              updatedBy: auditContext.userFullName,
+            })
+          }
+
+          employeeTotalDeduction = this.roundCurrency(
+            employeeTotalDeduction.plus(statutoryDeductions.total),
+          )
+        }
+
+        const netSalary = this.roundCurrency(
+          grossSalary.minus(employeeTotalDeduction),
+        )
 
         const createdPayslip = await tx.payslip.create({
           data: {
@@ -451,8 +561,8 @@ export class PayslipService extends BaseService<
             tenantId: period.tenantId,
             baseSalary: employee.baseSalary,
             grossSalary,
-            totalAllowance,
-            totalDeduction: employeeTotalDeduction,
+            totalAllowance: this.roundCurrency(totalAllowance),
+            totalDeduction: this.roundCurrency(employeeTotalDeduction),
             netSalary,
             createdBy: auditContext.userFullName,
             updatedBy: auditContext.userFullName,
@@ -481,9 +591,9 @@ export class PayslipService extends BaseService<
           id: createdRun.id,
         },
         data: {
-          grossSalary: totalGross,
-          totalDeductions: totalDeduction,
-          netSalary: totalNet,
+          grossSalary: this.roundCurrency(totalGross),
+          totalDeductions: this.roundCurrency(totalDeduction),
+          netSalary: this.roundCurrency(totalNet),
           updatedBy: auditContext.userFullName,
         },
       })
@@ -839,10 +949,142 @@ export class PayslipService extends BaseService<
     defaultValue: Prisma.Decimal,
   ): Prisma.Decimal {
     if (calculationType === 'percentage') {
-      return baseSalary.mul(defaultValue).div(100)
+      return this.roundCurrency(baseSalary.mul(defaultValue).div(100))
     }
 
-    return defaultValue
+    return this.roundCurrency(defaultValue)
+  }
+
+  private calculateStatutoryDeductions(input: {
+    baseSalary: Prisma.Decimal
+    grossSalary: Prisma.Decimal
+    taxableAllowance: Prisma.Decimal
+    ptkpStatus: PtkpStatus
+    hasNpwp: boolean
+    isBpjsKesehatanParticipant: boolean
+    isBpjsKetenagakerjaanParticipant: boolean
+    profile: PayrollRegulationProfile
+  }): {
+    bpjsKesehatan: Prisma.Decimal
+    bpjsJht: Prisma.Decimal
+    bpjsJp: Prisma.Decimal
+    pph21: Prisma.Decimal
+    total: Prisma.Decimal
+  } {
+    const bpjsKesehatanBase = Prisma.Decimal.min(
+      input.grossSalary,
+      input.profile.bpjs.kesehatanWageCap,
+    )
+    const bpjsKesehatan = input.isBpjsKesehatanParticipant
+      ? this.roundCurrency(
+          bpjsKesehatanBase.mul(input.profile.bpjs.kesehatanEmployeeRate),
+        )
+      : new Prisma.Decimal(0)
+
+    const bpjsJht = input.isBpjsKetenagakerjaanParticipant
+      ? this.roundCurrency(
+          input.baseSalary.mul(input.profile.bpjs.jhtEmployeeRate),
+        )
+      : new Prisma.Decimal(0)
+
+    const bpjsJpBase = Prisma.Decimal.min(
+      input.baseSalary,
+      input.profile.bpjs.jpWageCap,
+    )
+    const bpjsJp = input.isBpjsKetenagakerjaanParticipant
+      ? this.roundCurrency(bpjsJpBase.mul(input.profile.bpjs.jpEmployeeRate))
+      : new Prisma.Decimal(0)
+
+    const taxableGrossMonthly = this.roundCurrency(
+      input.baseSalary.plus(input.taxableAllowance),
+    )
+
+    const monthlyOccupationalCost = Prisma.Decimal.min(
+      this.roundCurrency(
+        taxableGrossMonthly.mul(input.profile.pph21.occupationalCostRate),
+      ),
+      input.profile.pph21.occupationalCostMonthlyCap,
+    )
+
+    const monthlyNetoForTax = this.roundCurrency(
+      taxableGrossMonthly
+        .minus(monthlyOccupationalCost)
+        .minus(bpjsJht)
+        .minus(bpjsJp),
+    )
+
+    const annualNetoForTax = this.roundCurrency(monthlyNetoForTax.mul(12))
+    const ptkp = input.profile.pph21.ptkpByStatus[input.ptkpStatus]
+    const annualPkpRaw = Prisma.Decimal.max(
+      new Prisma.Decimal(0),
+      annualNetoForTax.minus(ptkp),
+    )
+
+    const annualPkpRounded = annualPkpRaw.div(1000).floor().mul(1000)
+
+    let annualTax = this.calculateProgressiveAnnualTax(
+      annualPkpRounded,
+      input.profile,
+    )
+
+    if (!input.hasNpwp) {
+      annualTax = this.roundCurrency(
+        annualTax.mul(input.profile.pph21.nonNpwpRateMultiplier),
+      )
+    }
+    const pph21 = this.roundCurrency(annualTax.div(12))
+
+    const total = this.roundCurrency(
+      bpjsKesehatan.plus(bpjsJht).plus(bpjsJp).plus(pph21),
+    )
+
+    return {
+      bpjsKesehatan,
+      bpjsJht,
+      bpjsJp,
+      pph21,
+      total,
+    }
+  }
+
+  private calculateProgressiveAnnualTax(
+    annualPkp: Prisma.Decimal,
+    profile: PayrollRegulationProfile,
+  ): Prisma.Decimal {
+    let remaining = annualPkp
+    let lowerBound = new Prisma.Decimal(0)
+    let total = new Prisma.Decimal(0)
+
+    if (remaining.lte(0)) {
+      return total
+    }
+
+    for (const bracket of profile.pph21.annualBrackets) {
+      if (remaining.lte(0)) {
+        break
+      }
+
+      if (bracket.upTo === null) {
+        total = total.plus(remaining.mul(bracket.rate))
+        remaining = new Prisma.Decimal(0)
+        break
+      }
+
+      const bracketWidth = bracket.upTo.minus(lowerBound)
+      const taxableInBracket = Prisma.Decimal.min(remaining, bracketWidth)
+
+      total = total.plus(taxableInBracket.mul(bracket.rate))
+      remaining = remaining.minus(taxableInBracket)
+      lowerBound = bracket.upTo
+    }
+
+    return this.roundCurrency(total)
+  }
+
+  private roundCurrency(value: Prisma.Decimal): Prisma.Decimal {
+    return new Prisma.Decimal(
+      value.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP).toString(),
+    )
   }
 
   private resolveTenantAndPeriodRange(
