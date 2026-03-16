@@ -3,14 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { Employee, Prisma } from '@prismaclient/client'
+import { Employee, EmployeeSalaryComponent, Prisma } from '@prismaclient/client'
 
 import { BaseService } from '@src/common/services'
 import { PaginatedResponse, PaginationDto } from '@src/common/dto'
 import type { AuditContext } from '@src/common/types'
 import { AbilityFactory } from '@src/common/casl'
 import { PrismaService } from '@src/database/prisma.service'
-import { CreateEmployeeDto, EmployeeDto, UpdateEmployeeDto } from '../dto'
+import {
+  CreateEmployeeDto,
+  DeleteEmployeeDto,
+  EmployeeDto,
+  EmployeeSalaryComponentCreateInputDto,
+  EmployeeSalaryComponentOptionDto,
+  EmployeeSalaryComponentSyncInputDto,
+  UpdateEmployeeDto,
+} from '../dto'
 
 @Injectable()
 export class EmployeeService extends BaseService<
@@ -68,6 +76,7 @@ export class EmployeeService extends BaseService<
               code: true,
             },
           },
+          employeeSalaryComponents: true,
         },
       }),
       this.prisma.employee.count({ where }),
@@ -101,6 +110,7 @@ export class EmployeeService extends BaseService<
             code: true,
           },
         },
+        employeeSalaryComponents: true,
       },
     })
 
@@ -110,6 +120,56 @@ export class EmployeeService extends BaseService<
     }
 
     return this.toDto(employee)
+  }
+
+  async findSalaryComponentOptions(
+    search: string | undefined,
+    includeInactive: boolean,
+    auditContext: AuditContext,
+  ): Promise<EmployeeSalaryComponentOptionDto[]> {
+    const scopeFilter = this.abilityFactory.buildSalaryComponentWhere(
+      auditContext,
+      'read',
+    )
+
+    const where: Prisma.SalaryComponentWhereInput = {
+      ...(scopeFilter ?? {}),
+      ...(includeInactive ? {} : { isActive: true }),
+      ...(search
+        ? {
+            name: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          }
+        : {}),
+    }
+
+    const options = await this.prisma.salaryComponent.findMany({
+      where,
+      orderBy: {
+        name: 'asc',
+      },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        calculationType: true,
+        defaultValue: true,
+        isTaxable: true,
+        isActive: true,
+      },
+    })
+
+    return options.map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      calculationType: item.calculationType,
+      defaultValue: item.defaultValue.toString(),
+      isTaxable: item.isTaxable,
+      isActive: item.isActive,
+    }))
   }
 
   async create(
@@ -169,6 +229,35 @@ export class EmployeeService extends BaseService<
           updatedBy: auditContext.userFullName,
         },
       })
+
+      if (
+        createDto.employeeSalaryComponents &&
+        createDto.employeeSalaryComponents.length > 0
+      ) {
+        const createdSalaryComponents = await Promise.all(
+          createDto.employeeSalaryComponents.map((item) =>
+            tx.employeeSalaryComponent.create({
+              data: this.mapCreateSalaryComponentInput(
+                item,
+                createdEmployee.id,
+                createdEmployee.tenantId,
+                auditContext,
+              ),
+            }),
+          ),
+        )
+
+        for (const salaryComponent of createdSalaryComponents) {
+          await this.writeAuditLog(tx, {
+            action: 'CREATE',
+            entity: 'EmployeeSalaryComponent',
+            entityId: salaryComponent.id,
+            tenantId: salaryComponent.tenantId,
+            auditContext,
+            afterData: salaryComponent as unknown as Record<string, unknown>,
+          })
+        }
+      }
 
       await this.writeAuditLog(tx, {
         action: 'CREATE',
@@ -234,11 +323,24 @@ export class EmployeeService extends BaseService<
       data.tenantId = managedTenantId
     }
 
+    const salaryComponentsInput =
+      updateDto.employeeSalaryComponents ?? updateDto.employeeSalaryCompoennt
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const updatedEmployee = await tx.employee.update({
         where: { id },
         data,
       })
+
+      if (salaryComponentsInput) {
+        await this.applySalaryComponentSync(
+          tx,
+          id,
+          updatedEmployee.tenantId,
+          salaryComponentsInput,
+          auditContext,
+        )
+      }
 
       await this.writeAuditLog(tx, {
         action: 'UPDATE',
@@ -256,7 +358,11 @@ export class EmployeeService extends BaseService<
     return this.toDto(updated)
   }
 
-  async delete(id: number, auditContext: AuditContext): Promise<void> {
+  async delete(
+    id: number,
+    auditContext: AuditContext,
+    deleteDto?: DeleteEmployeeDto,
+  ): Promise<void> {
     this.logWithContext('log', `Deleting employee ${id}`, auditContext)
 
     const scopeFilter = this.abilityFactory.buildEmployeeWhere(
@@ -275,15 +381,36 @@ export class EmployeeService extends BaseService<
       throw new NotFoundException(`Employee with ID ${id} not found`)
     }
 
-    const [salaryComponentCount, payslipCount] = await Promise.all([
-      this.prisma.employeeSalaryComponent.count({ where: { employeeId: id } }),
+    const [salaryComponents, payslipCount] = await Promise.all([
+      this.prisma.employeeSalaryComponent.findMany({
+        where: { employeeId: id },
+      }),
       this.prisma.payslip.count({ where: { employeeId: id } }),
     ])
 
+    const salaryComponentIds = new Set(salaryComponents.map((item) => item.id))
+    const requestedDeleteIds = deleteDto?.deleteSalaryComponentIds ?? []
+    const deleteAllSalaryComponents =
+      deleteDto?.deleteAllSalaryComponents === true
+
+    if (
+      requestedDeleteIds.some(
+        (salaryComponentId) => !salaryComponentIds.has(salaryComponentId),
+      )
+    ) {
+      throw new BadRequestException(
+        'Some salary component IDs are invalid for this employee',
+      )
+    }
+
+    const remainingSalaryComponentCount = deleteAllSalaryComponents
+      ? 0
+      : salaryComponents.length - requestedDeleteIds.length
+
     const assignedModules: string[] = []
-    if (salaryComponentCount > 0)
+    if (remainingSalaryComponentCount > 0)
       assignedModules.push(
-        `Employee Salary Components (${salaryComponentCount})`,
+        `Employee Salary Components (${remainingSalaryComponentCount})`,
       )
     if (payslipCount > 0) assignedModules.push(`Payslips (${payslipCount})`)
 
@@ -294,6 +421,42 @@ export class EmployeeService extends BaseService<
     }
 
     await this.prisma.$transaction(async (tx) => {
+      if (deleteAllSalaryComponents) {
+        for (const salaryComponent of salaryComponents) {
+          await tx.employeeSalaryComponent.delete({
+            where: { id: salaryComponent.id },
+          })
+
+          await this.writeAuditLog(tx, {
+            action: 'DELETE',
+            entity: 'EmployeeSalaryComponent',
+            entityId: salaryComponent.id,
+            tenantId: salaryComponent.tenantId,
+            auditContext,
+            beforeData: salaryComponent as unknown as Record<string, unknown>,
+          })
+        }
+      } else if (requestedDeleteIds.length > 0) {
+        const salaryComponentToDelete = salaryComponents.filter((item) =>
+          requestedDeleteIds.includes(item.id),
+        )
+
+        for (const salaryComponent of salaryComponentToDelete) {
+          await tx.employeeSalaryComponent.delete({
+            where: { id: salaryComponent.id },
+          })
+
+          await this.writeAuditLog(tx, {
+            action: 'DELETE',
+            entity: 'EmployeeSalaryComponent',
+            entityId: salaryComponent.id,
+            tenantId: salaryComponent.tenantId,
+            auditContext,
+            beforeData: salaryComponent as unknown as Record<string, unknown>,
+          })
+        }
+      }
+
       await tx.employee.delete({
         where: { id },
       })
@@ -322,7 +485,10 @@ export class EmployeeService extends BaseService<
   }
 
   private toDto(
-    employee: Employee & { tenant?: { name: string; code: string } | null },
+    employee: Employee & {
+      tenant?: { name: string; code: string } | null
+      employeeSalaryComponents?: EmployeeSalaryComponent[]
+    },
   ): EmployeeDto {
     return {
       id: employee.id,
@@ -340,14 +506,169 @@ export class EmployeeService extends BaseService<
       createdAt: employee.createdAt,
       updatedBy: employee.updatedBy,
       updatedAt: employee.updatedAt,
+      employeeSalaryComponents: employee.employeeSalaryComponents?.map(
+        (item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+          calculationType: item.calculationType,
+          defaultValue: item.defaultValue.toString(),
+          isTaxable: item.isTaxable,
+          isActive: item.isActive,
+        }),
+      ),
     }
   }
 
   private mapToDto(
     employees: Array<
-      Employee & { tenant?: { name: string; code: string } | null }
+      Employee & {
+        tenant?: { name: string; code: string } | null
+        employeeSalaryComponents?: EmployeeSalaryComponent[]
+      }
     >,
   ): EmployeeDto[] {
     return employees.map((employee) => this.toDto(employee))
+  }
+
+  private mapCreateSalaryComponentInput(
+    input: EmployeeSalaryComponentCreateInputDto,
+    employeeId: number,
+    tenantId: number,
+    auditContext: AuditContext,
+  ): Prisma.EmployeeSalaryComponentUncheckedCreateInput {
+    return {
+      employeeId,
+      tenantId,
+      name: input.name,
+      type: input.type ?? 'allowance',
+      calculationType: input.calculationType ?? 'fixed',
+      defaultValue: input.defaultValue,
+      isTaxable: input.isTaxable ?? false,
+      isActive: input.isActive ?? true,
+      createdBy: auditContext.userFullName,
+      updatedBy: auditContext.userFullName,
+    }
+  }
+
+  private async applySalaryComponentSync(
+    tx: Prisma.TransactionClient,
+    employeeId: number,
+    tenantId: number,
+    inputs: EmployeeSalaryComponentSyncInputDto[],
+    auditContext: AuditContext,
+  ): Promise<void> {
+    const existingItems = await tx.employeeSalaryComponent.findMany({
+      where: {
+        employeeId,
+        tenantId,
+      },
+    })
+
+    const existingById = new Map(existingItems.map((item) => [item.id, item]))
+    const retainedIds = new Set<number>()
+
+    for (const item of inputs) {
+      if (item.id !== undefined) {
+        const existingItem = existingById.get(item.id)
+
+        if (!existingItem) {
+          throw new BadRequestException(
+            `Salary component with ID ${item.id} is invalid for this employee`,
+          )
+        }
+
+        retainedIds.add(item.id)
+
+        const updateData: Prisma.EmployeeSalaryComponentUncheckedUpdateInput = {
+          updatedBy: auditContext.userFullName,
+        }
+
+        this.mapUpdateSalaryComponentInput(updateData, item)
+
+        const updatedItem = await tx.employeeSalaryComponent.update({
+          where: { id: item.id },
+          data: updateData,
+        })
+
+        await this.writeAuditLog(tx, {
+          action: 'UPDATE',
+          entity: 'EmployeeSalaryComponent',
+          entityId: updatedItem.id,
+          tenantId: updatedItem.tenantId,
+          auditContext,
+          beforeData: existingItem as unknown as Record<string, unknown>,
+          afterData: updatedItem as unknown as Record<string, unknown>,
+        })
+
+        continue
+      }
+
+      if (item.name === undefined || item.defaultValue === undefined) {
+        throw new BadRequestException(
+          'name and defaultValue are required when creating employee salary components',
+        )
+      }
+
+      const createdItem = await tx.employeeSalaryComponent.create({
+        data: this.mapCreateSalaryComponentInput(
+          {
+            name: item.name,
+            type: item.type,
+            calculationType: item.calculationType,
+            defaultValue: item.defaultValue,
+            isTaxable: item.isTaxable,
+            isActive: item.isActive,
+          },
+          employeeId,
+          tenantId,
+          auditContext,
+        ),
+      })
+
+      retainedIds.add(createdItem.id)
+
+      await this.writeAuditLog(tx, {
+        action: 'CREATE',
+        entity: 'EmployeeSalaryComponent',
+        entityId: createdItem.id,
+        tenantId: createdItem.tenantId,
+        auditContext,
+        afterData: createdItem as unknown as Record<string, unknown>,
+      })
+    }
+
+    const deleteItems = existingItems.filter(
+      (item) => !retainedIds.has(item.id),
+    )
+
+    for (const deleteItem of deleteItems) {
+      await tx.employeeSalaryComponent.delete({
+        where: { id: deleteItem.id },
+      })
+
+      await this.writeAuditLog(tx, {
+        action: 'DELETE',
+        entity: 'EmployeeSalaryComponent',
+        entityId: deleteItem.id,
+        tenantId: deleteItem.tenantId,
+        auditContext,
+        beforeData: deleteItem as unknown as Record<string, unknown>,
+      })
+    }
+  }
+
+  private mapUpdateSalaryComponentInput(
+    target: Prisma.EmployeeSalaryComponentUncheckedUpdateInput,
+    source: EmployeeSalaryComponentSyncInputDto,
+  ): void {
+    if (source.name !== undefined) target.name = source.name
+    if (source.type !== undefined) target.type = source.type
+    if (source.calculationType !== undefined)
+      target.calculationType = source.calculationType
+    if (source.defaultValue !== undefined)
+      target.defaultValue = source.defaultValue
+    if (source.isTaxable !== undefined) target.isTaxable = source.isTaxable
+    if (source.isActive !== undefined) target.isActive = source.isActive
   }
 }

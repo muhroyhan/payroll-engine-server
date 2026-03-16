@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
+import { PrismaModule } from '@src/database/prisma.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AUTH_CONFIG } from './modules/auth/auth.config'
 import { TenantModule } from './modules/tenant'
 import { UserModule } from './modules/user'
 import { EmployeeModule } from './modules/employee'
+import { SalaryComponentModule } from './modules/salary-component'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
@@ -37,10 +39,12 @@ import { AbilityFactory } from '@src/common/casl'
         limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
       },
     ]),
+    PrismaModule,
     AuthModule,
     TenantModule,
     UserModule,
     EmployeeModule,
+    SalaryComponentModule,
   ],
   providers: [
     {
