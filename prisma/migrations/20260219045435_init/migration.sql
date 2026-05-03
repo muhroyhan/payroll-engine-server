@@ -5,6 +5,9 @@ CREATE TYPE "Role" AS ENUM ('superadmin', 'tenant_admin', 'payroll_officer', 'vi
 CREATE TYPE "EmployeeType" AS ENUM ('permanent', 'contract');
 
 -- CreateEnum
+CREATE TYPE "PtkpStatus" AS ENUM ('TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3');
+
+-- CreateEnum
 CREATE TYPE "SalaryType" AS ENUM ('allowance', 'deduction');
 
 -- CreateEnum
@@ -68,6 +71,11 @@ CREATE TABLE "Employee" (
     "fullName" TEXT NOT NULL,
     "position" TEXT NOT NULL,
     "employeeType" "EmployeeType" NOT NULL DEFAULT 'contract',
+    "ptkpStatus" "PtkpStatus" NOT NULL DEFAULT 'TK0',
+    "hasNpwp" BOOLEAN NOT NULL DEFAULT true,
+    "isBpjsKesehatanParticipant" BOOLEAN NOT NULL DEFAULT true,
+    "isBpjsKetenagakerjaanParticipant" BOOLEAN NOT NULL DEFAULT true,
+    "npwpNumber" TEXT,
     "baseSalary" DECIMAL(15,2) NOT NULL,
     "joinDate" TIMESTAMP(3) NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,

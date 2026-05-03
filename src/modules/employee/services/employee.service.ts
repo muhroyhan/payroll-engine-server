@@ -222,6 +222,13 @@ export class EmployeeService extends BaseService<
           fullName: createDto.fullName,
           position: createDto.position,
           employeeType: createDto.employeeType ?? 'contract',
+          ptkpStatus: createDto.ptkpStatus ?? 'TK0',
+          hasNpwp: createDto.hasNpwp ?? true,
+          isBpjsKesehatanParticipant:
+            createDto.isBpjsKesehatanParticipant ?? true,
+          isBpjsKetenagakerjaanParticipant:
+            createDto.isBpjsKetenagakerjaanParticipant ?? true,
+          npwpNumber: createDto.npwpNumber,
           baseSalary: createDto.baseSalary,
           joinDate: createDto.joinDate,
           isActive: createDto.isActive ?? true,
@@ -305,6 +312,16 @@ export class EmployeeService extends BaseService<
     if (updateDto.position !== undefined) data.position = updateDto.position
     if (updateDto.employeeType !== undefined)
       data.employeeType = updateDto.employeeType
+    if (updateDto.ptkpStatus !== undefined)
+      data.ptkpStatus = updateDto.ptkpStatus
+    if (updateDto.hasNpwp !== undefined) data.hasNpwp = updateDto.hasNpwp
+    if (updateDto.isBpjsKesehatanParticipant !== undefined)
+      data.isBpjsKesehatanParticipant = updateDto.isBpjsKesehatanParticipant
+    if (updateDto.isBpjsKetenagakerjaanParticipant !== undefined)
+      data.isBpjsKetenagakerjaanParticipant =
+        updateDto.isBpjsKetenagakerjaanParticipant
+    if (updateDto.npwpNumber !== undefined)
+      data.npwpNumber = updateDto.npwpNumber
     if (updateDto.baseSalary !== undefined)
       data.baseSalary = updateDto.baseSalary
     if (updateDto.joinDate !== undefined) data.joinDate = updateDto.joinDate
@@ -500,6 +517,12 @@ export class EmployeeService extends BaseService<
       position: employee.position,
       employeeType: employee.employeeType,
       baseSalary: employee.baseSalary.toString(),
+      ptkpStatus: employee.ptkpStatus,
+      hasNpwp: employee.hasNpwp,
+      isBpjsKesehatanParticipant: employee.isBpjsKesehatanParticipant,
+      isBpjsKetenagakerjaanParticipant:
+        employee.isBpjsKetenagakerjaanParticipant,
+      npwpNumber: employee.npwpNumber ?? undefined,
       joinDate: employee.joinDate,
       isActive: employee.isActive,
       createdBy: employee.createdBy,
