@@ -2,12 +2,20 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerModule } from '@nestjs/throttler'
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core'
+import { PrismaModule } from '@src/database/prisma.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AUTH_CONFIG } from './modules/auth/auth.config'
+import { TenantModule } from './modules/tenant'
+import { UserModule } from './modules/user'
+import { EmployeeModule } from './modules/employee'
+import { SalaryComponentModule } from './modules/salary-component'
+import { PayslipModule } from './modules/payslip'
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { ThrottlerGuard } from '@nestjs/throttler'
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
 import { ValidationPipe } from './common/pipes/validation.pipe'
+import { RolesGuard } from './common/guards/roles.guard'
+import { AbilityFactory } from '@src/common/casl'
 
 @Module({
   imports: [
@@ -32,7 +40,13 @@ import { ValidationPipe } from './common/pipes/validation.pipe'
         limit: AUTH_CONFIG.THROTTLE.GLOBAL_LIMIT,
       },
     ]),
+    PrismaModule,
     AuthModule,
+    TenantModule,
+    UserModule,
+    EmployeeModule,
+    SalaryComponentModule,
+    PayslipModule,
   ],
   providers: [
     {
@@ -50,6 +64,11 @@ import { ValidationPipe } from './common/pipes/validation.pipe'
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    AbilityFactory,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })

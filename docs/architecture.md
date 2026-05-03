@@ -26,15 +26,17 @@ AppModule (root)
 ├── ConfigModule (global)       — env vars accessible everywhere
 ├── ThrottlerModule (global)    — global 100 req/min rate limit
 │
-└── AuthModule
-    ├── PrismaModule            — database access
-    ├── JwtModule               — token sign/verify
-    ├── PassportModule          — auth strategy runner
-    ├── AuthController          — HTTP endpoints
-    ├── AuthService             — business logic
-    ├── JwtStrategy             — Passport JWT validation
-    ├── JwtAuthGuard            — applied globally (APP_GUARD)
-    └── EmailThrottlerGuard     — per-endpoint, email-based fail limiter
+├── AuthModule
+│   ├── PrismaModule            — database access
+│   ├── JwtModule               — token sign/verify
+│   ├── PassportModule          — auth strategy runner
+│   ├── AuthController          — HTTP endpoints
+│   ├── AuthService             — business logic
+│   ├── JwtStrategy             — Passport JWT validation
+│   ├── JwtAuthGuard            — applied globally (APP_GUARD)
+│   └── EmailThrottlerGuard     — per-endpoint, email-based fail limiter
+├── TenantModule                — tenant management CRUD
+└── UserModule                  — tenant-scoped user management CRUD
 ```
 
 ---

@@ -1,8 +1,11 @@
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('tenant_admin', 'payroll_officer', 'viewer');
+CREATE TYPE "Role" AS ENUM ('superadmin', 'tenant_admin', 'payroll_officer', 'viewer');
 
 -- CreateEnum
 CREATE TYPE "EmployeeType" AS ENUM ('permanent', 'contract');
+
+-- CreateEnum
+CREATE TYPE "PtkpStatus" AS ENUM ('TK0', 'TK1', 'TK2', 'TK3', 'K0', 'K1', 'K2', 'K3');
 
 -- CreateEnum
 CREATE TYPE "SalaryType" AS ENUM ('allowance', 'deduction');
@@ -15,7 +18,7 @@ CREATE TYPE "PayslipPeriodStatus" AS ENUM ('draft', 'processed', 'locked');
 
 -- CreateTable
 CREATE TABLE "Tenant" (
-    "id" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -28,8 +31,8 @@ CREATE TABLE "Tenant" (
 
 -- CreateTable
 CREATE TABLE "User" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "tenantId" INTEGER,
     "email" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
@@ -46,13 +49,13 @@ CREATE TABLE "User" (
 
 -- CreateTable
 CREATE TABLE "AuditLogs" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
-    "actorUserId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "tenantId" INTEGER NOT NULL,
+    "actorUserId" INTEGER NOT NULL,
     "action" TEXT NOT NULL,
     "entity" TEXT NOT NULL,
     "entityType" TEXT NOT NULL,
-    "entityId" TEXT NOT NULL,
+    "entityId" INTEGER NOT NULL,
     "beforeData" JSONB,
     "afterData" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -62,12 +65,17 @@ CREATE TABLE "AuditLogs" (
 
 -- CreateTable
 CREATE TABLE "Employee" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "employeeCode" TEXT NOT NULL,
     "fullName" TEXT NOT NULL,
     "position" TEXT NOT NULL,
     "employeeType" "EmployeeType" NOT NULL DEFAULT 'contract',
+    "ptkpStatus" "PtkpStatus" NOT NULL DEFAULT 'TK0',
+    "hasNpwp" BOOLEAN NOT NULL DEFAULT true,
+    "isBpjsKesehatanParticipant" BOOLEAN NOT NULL DEFAULT true,
+    "isBpjsKetenagakerjaanParticipant" BOOLEAN NOT NULL DEFAULT true,
+    "npwpNumber" TEXT,
     "baseSalary" DECIMAL(15,2) NOT NULL,
     "joinDate" TIMESTAMP(3) NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
@@ -81,8 +89,8 @@ CREATE TABLE "Employee" (
 
 -- CreateTable
 CREATE TABLE "SalaryComponent" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "type" "SalaryType" NOT NULL DEFAULT 'allowance',
     "calculationType" "CalculationType" NOT NULL DEFAULT 'fixed',
@@ -99,9 +107,9 @@ CREATE TABLE "SalaryComponent" (
 
 -- CreateTable
 CREATE TABLE "EmployeeSalaryComponent" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "employeeId" INTEGER NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "type" "SalaryType" NOT NULL DEFAULT 'allowance',
     "calculationType" "CalculationType" NOT NULL DEFAULT 'fixed',
@@ -118,8 +126,8 @@ CREATE TABLE "EmployeeSalaryComponent" (
 
 -- CreateTable
 CREATE TABLE "PayslipPeriod" (
-    "id" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
     "period_start" TIMESTAMP(3) NOT NULL,
     "period_end" TIMESTAMP(3) NOT NULL,
@@ -134,10 +142,10 @@ CREATE TABLE "PayslipPeriod" (
 
 -- CreateTable
 CREATE TABLE "PayslipRun" (
-    "id" TEXT NOT NULL,
-    "payslipPeriodId" TEXT NOT NULL,
-    "runByUserId" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "payslipPeriodId" INTEGER NOT NULL,
+    "runByUserId" INTEGER NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "grossSalary" DECIMAL(15,2) NOT NULL,
     "totalDeductions" DECIMAL(15,2) NOT NULL,
     "netSalary" DECIMAL(15,2) NOT NULL,
@@ -151,10 +159,10 @@ CREATE TABLE "PayslipRun" (
 
 -- CreateTable
 CREATE TABLE "Payslip" (
-    "id" TEXT NOT NULL,
-    "payslipRunId" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "tenantId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "payslipRunId" INTEGER NOT NULL,
+    "employeeId" INTEGER NOT NULL,
+    "tenantId" INTEGER NOT NULL,
     "baseSalary" DECIMAL(15,2) NOT NULL,
     "grossSalary" DECIMAL(15,2) NOT NULL,
     "totalAllowance" DECIMAL(15,2) NOT NULL,
@@ -170,8 +178,8 @@ CREATE TABLE "Payslip" (
 
 -- CreateTable
 CREATE TABLE "PayslipItem" (
-    "id" TEXT NOT NULL,
-    "payslipId" TEXT NOT NULL,
+    "id" SERIAL NOT NULL,
+    "payslipId" INTEGER NOT NULL,
     "componentName" TEXT NOT NULL,
     "componentType" "SalaryType" NOT NULL,
     "amount" DECIMAL(15,2) NOT NULL,
@@ -250,7 +258,7 @@ CREATE INDEX "Payslip_payslipRunId_idx" ON "Payslip"("payslipRunId");
 CREATE INDEX "PayslipItem_payslipId_idx" ON "PayslipItem"("payslipId");
 
 -- AddForeignKey
-ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AuditLogs" ADD CONSTRAINT "AuditLogs_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

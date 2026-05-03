@@ -15,7 +15,7 @@ generator client {
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
+  id        Int      @id @default(autoincrement())
   name      String
   code      String   @unique
   createdAt DateTime @default(now())
@@ -34,15 +34,16 @@ model Tenant {
 }
 
 enum Role {
+  superadmin
   tenant_admin
   payroll_officer
   viewer
 }
 
 model User {
-  id           String   @id @default(uuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  id           Int      @id @default(autoincrement())
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id])
   email        String   @unique
   password     String
   fullName     String
@@ -62,15 +63,15 @@ model User {
 }
 
 model AuditLogs {
-  id          String   @id @default(uuid())
-  tenantId    String
+  id          Int      @id @default(autoincrement())
+  tenantId    Int
   tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  actorUserId String
+  actorUserId Int
   actorUser   User     @relation(fields: [actorUserId], references: [id])
   action      String
   entity      String
   entityType  String
-  entityId    String
+  entityId    Int
   beforeData  Json?
   afterData   Json?
   createdAt   DateTime @default(now())
@@ -85,21 +86,37 @@ enum EmployeeType {
   contract
 }
 
+enum PtkpStatus {
+  TK0
+  TK1
+  TK2
+  TK3
+  K0
+  K1
+  K2
+  K3
+}
+
 model Employee {
-  id           String       @id @default(uuid())
-  tenantId     String
-  tenant       Tenant       @relation(fields: [tenantId], references: [id])
-  employeeCode String       @unique
-  fullName     String
-  position     String
-  employeeType EmployeeType @default(contract)
-  baseSalary   Decimal      @db.Decimal(15, 2)
-  joinDate     DateTime
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now())
-  createdBy    String
-  updatedAt    DateTime     @updatedAt
-  updatedBy    String
+  id                               Int          @id @default(autoincrement())
+  tenantId                         Int
+  tenant                           Tenant       @relation(fields: [tenantId], references: [id])
+  employeeCode                     String       @unique
+  fullName                         String
+  position                         String
+  employeeType                     EmployeeType @default(contract)
+  ptkpStatus                       PtkpStatus   @default(TK0)
+  hasNpwp                          Boolean      @default(true)
+  isBpjsKesehatanParticipant       Boolean      @default(true)
+  isBpjsKetenagakerjaanParticipant Boolean      @default(true)
+  npwpNumber                       String?
+  baseSalary                       Decimal      @db.Decimal(15, 2)
+  joinDate                         DateTime
+  isActive                         Boolean      @default(true)
+  createdAt                        DateTime     @default(now())
+  createdBy                        String
+  updatedAt                        DateTime     @updatedAt
+  updatedBy                        String
 
   employeeSalaryComponents EmployeeSalaryComponent[]
   payslips                 Payslip[]
@@ -119,8 +136,8 @@ enum CalculationType {
 }
 
 model SalaryComponent {
-  id              String          @id @default(uuid())
-  tenantId        String
+  id              Int             @id @default(autoincrement())
+  tenantId        Int
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   name            String
   type            SalaryType      @default(allowance)
@@ -138,10 +155,10 @@ model SalaryComponent {
 }
 
 model EmployeeSalaryComponent {
-  id              String          @id @default(uuid())
-  employeeId      String
+  id              Int             @id @default(autoincrement())
+  employeeId      Int
   employee        Employee        @relation(fields: [employeeId], references: [id])
-  tenantId        String
+  tenantId        Int
   tenant          Tenant          @relation(fields: [tenantId], references: [id])
   name            String
   type            SalaryType      @default(allowance)
@@ -165,8 +182,8 @@ enum PayslipPeriodStatus {
 }
 
 model PayslipPeriod {
-  id           String              @id @default(uuid())
-  tenantId     String
+  id           Int                 @id @default(autoincrement())
+  tenantId     Int
   tenant       Tenant              @relation(fields: [tenantId], references: [id])
   name         String
   period_start DateTime
@@ -184,12 +201,12 @@ model PayslipPeriod {
 }
 
 model PayslipRun {
-  id              String        @id @default(uuid())
-  payslipPeriodId String
+  id              Int           @id @default(autoincrement())
+  payslipPeriodId Int
   payslipPeriod   PayslipPeriod @relation(fields: [payslipPeriodId], references: [id])
-  runByUserId     String
+  runByUserId     Int
   runByUser       User          @relation(fields: [runByUserId], references: [id])
-  tenantId        String
+  tenantId        Int
   tenant          Tenant        @relation(fields: [tenantId], references: [id])
   grossSalary     Decimal       @db.Decimal(15, 2)
   totalDeductions Decimal       @db.Decimal(15, 2)
@@ -206,12 +223,12 @@ model PayslipRun {
 }
 
 model Payslip {
-  id             String        @id @default(uuid())
-  payslipRunId   String
+  id             Int           @id @default(autoincrement())
+  payslipRunId   Int
   payslipRun     PayslipRun    @relation(fields: [payslipRunId], references: [id])
-  employeeId     String
+  employeeId     Int
   employee       Employee      @relation(fields: [employeeId], references: [id])
-  tenantId       String
+  tenantId       Int
   tenant         Tenant        @relation(fields: [tenantId], references: [id])
   baseSalary     Decimal       @db.Decimal(15, 2)
   grossSalary    Decimal       @db.Decimal(15, 2)
@@ -230,8 +247,8 @@ model Payslip {
 }
 
 model PayslipItem {
-  id            String     @id @default(uuid())
-  payslipId     String
+  id            Int        @id @default(autoincrement())
+  payslipId     Int
   payslip       Payslip    @relation(fields: [payslipId], references: [id])
   componentName String
   componentType SalaryType

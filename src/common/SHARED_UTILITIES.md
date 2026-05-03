@@ -196,6 +196,30 @@ this.prisma.employee.findMany({ where })
 5. **Log with Context** - Use `logWithContext()` for better debugging
 6. **Audit Metadata** - Always capture `createdBy` and `updatedBy`
 
+### Standard Audit Log Pattern (CREATE/UPDATE/DELETE)
+
+When creating a new module service, use `BaseService.writeAuditLog()` in the same transaction as your DB mutation.
+
+```typescript
+const created = await this.prisma.$transaction(async (tx) => {
+  const entity = await tx.myEntity.create({ data })
+
+  await this.writeAuditLog(tx, {
+    action: 'CREATE',
+    entity: 'MyEntity',
+    entityId: entity.id,
+    tenantId: entity.tenantId,
+    auditContext,
+    afterData: entity as Record<string, unknown>,
+  })
+
+  return entity
+})
+```
+
+For `UPDATE`, include both `beforeData` and `afterData`. For `DELETE`, include `beforeData`.
+Use `omitAuditFields()` for sensitive columns (e.g., password/refreshToken).
+
 ### Creating a New Module
 
 1. **Generate base structure:**
