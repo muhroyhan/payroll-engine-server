@@ -1,4 +1,8 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "moduleResolution": "bundler"
+  },
   "exclude": ["prisma","prisma.config.ts","node_modules", "test", "dist", "**/*spec.ts"]
 }

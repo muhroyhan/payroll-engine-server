@@ -11,10 +11,12 @@ import {
   Post,
   Query,
   Req,
+  StreamableFile,
 } from '@nestjs/common'
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiProduces,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger'
@@ -35,13 +37,16 @@ import {
   ProcessPayslipPeriodDto,
   UpdatePayslipPeriodDto,
 } from '../dto'
-import { PayslipService } from '../services'
+import { PayslipPdfService, PayslipService } from '../services'
 
 @ApiTags('Payslip Management')
 @ApiBearerAuth()
 @Controller('payslips')
 export class PayslipController {
-  constructor(private payslipService: PayslipService) {}
+  constructor(
+    private payslipService: PayslipService,
+    private payslipPdfService: PayslipPdfService,
+  ) {}
 
   @Get('periods')
   @Roles('tenant_admin', 'payroll_officer', 'viewer')
@@ -61,6 +66,35 @@ export class PayslipController {
   ): Promise<PaginatedResponse<PayslipPeriodDto>> {
     const auditContext = buildAuditContext(request, 'READ')
     return await this.payslipService.findAll(pagination, auditContext)
+  }
+
+  @Get('periods/:id/pdf')
+  @Roles('tenant_admin', 'payroll_officer', 'viewer')
+  @ApiOperation({
+    summary: 'Download all payslips in a period as ZIP',
+    description:
+      'Generate a ZIP archive containing one PDF payslip per employee for every payslip run in the period',
+  })
+  @ApiProduces('application/zip')
+  @ApiResponse({
+    status: 200,
+    description: 'ZIP file containing payslip PDFs',
+    schema: { type: 'string', format: 'binary' },
+  })
+  async downloadPeriodPdfs(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<StreamableFile> {
+    const auditContext = buildAuditContext(request, 'READ')
+    const { buffer, filename } = await this.payslipPdfService.downloadPeriodZip(
+      id,
+      auditContext,
+    )
+    return new StreamableFile(buffer, {
+      type: 'application/zip',
+      disposition: `attachment; filename="${filename}"`,
+      length: buffer.length,
+    })
   }
 
   @Get('periods/:id')
@@ -240,6 +274,35 @@ export class PayslipController {
       pagination,
       auditContext,
     )
+  }
+
+  @Get(':id/pdf')
+  @Roles('tenant_admin', 'payroll_officer', 'viewer')
+  @ApiOperation({
+    summary: 'Download a single payslip as PDF',
+    description:
+      'Generate and download a PDF payslip for a specific payslip ID',
+  })
+  @ApiProduces('application/pdf')
+  @ApiResponse({
+    status: 200,
+    description: 'PDF payslip file',
+    schema: { type: 'string', format: 'binary' },
+  })
+  async downloadPayslipPdf(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() request: AuthenticatedRequest,
+  ): Promise<StreamableFile> {
+    const auditContext = buildAuditContext(request, 'READ')
+    const { buffer, filename } = await this.payslipPdfService.downloadSingle(
+      id,
+      auditContext,
+    )
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: `attachment; filename="${filename}"`,
+      length: buffer.length,
+    })
   }
 
   @Get(':id')
